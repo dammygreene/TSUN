@@ -1174,3 +1174,77 @@ body { background: #3a91c9; }
 @media (prefers-reduced-motion: reduce) {
   .crt-overlay::before { animation: none; }
 }
+
+/* TSUN 98 branding */
+.brand-lockup { display: inline-flex; align-items: baseline; gap: 4px; }
+.brand-98 { font-size: 9px; color: #ffcc00; background: #000080; padding: 1px 3px; border: 1px outset #d4d0c8; margin-left: 4px; }
+.ticker-25c { display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 8px; border: 1px solid #d8d2c8; padding: 2px 4px; margin-left: 6px; color: #d8d2c8; }
+
+/* Broker mini table in monitor */
+.monitor-broker-table { margin: 6px 0; border-top: 1px dashed rgba(178,222,249,.2); padding-top: 4px; }
+.monitor-broker-table > div { display: grid; grid-template-columns: 1fr 32px 44px; gap: 4px; font-size: 8px; padding: 2px 0; border-bottom: 1px solid rgba(178,222,249,.08); }
+.broker-mini-head { color: #7ab8e6; font-weight: 700; }
+
+/* Fun apps */
+.fun-app { padding: 12px; }
+.fun-note { margin-top: 14px; padding: 8px; background: #ffffe1; border: 1px solid #a0a0a0; color: #000; font-family: Arial, sans-serif; font-size: 10px; }
+.media-player-large { border: 2px outset #d4d0c8; background: #c0c0c0; padding: 8px; }
+.media-screen { background: #000; color: #00ff00; padding: 10px; font-family: 'Courier New', monospace; border: 2px inset #808080; }
+.media-screen strong { display: block; color: #ffff00; font-size: 12px; }
+.media-screen span { display: block; font-size: 10px; color: #00ff00; margin-top: 4px; }
+.media-screen em { display: block; font-size: 9px; color: #808080; margin-top: 6px; }
+.media-visual-large { display: flex; gap: 3px; align-items: end; height: 18px; margin-top: 10px; }
+.media-visual-large i { width: 6px; background: #00ff00; height: 4px; display: block; }
+.media-controls-large { display: flex; gap: 6px; margin-top: 8px; }
+.media-controls-large button { padding: 5px 10px; border: 1px outset #d4d0c8; background: #c0c0c0; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; }
+.media-playlist { margin-top: 10px; display: grid; gap: 4px; }
+.media-playlist button { text-align: left; padding: 6px; border: 1px solid #808080; background: #d4d0c8; font-family: 'Courier New', monospace; font-size: 9px; }
+.media-playlist button.active { background: #000080; color: #fff; }
+.media-playlist small { display: block; font-size: 8px; color: #404040; }
+.media-playlist button.active small { color: #b0b0ff; }
+
+.dialer-body { display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 320px; }
+.dialer-display { background: #000; color: #00ff00; padding: 12px; font-family: 'Courier New', monospace; border: 2px inset #808080; display: flex; justify-content: space-between; align-items: center; }
+.dialer-display span { font-size: 16px; letter-spacing: .1em; }
+.dialer-display em { font-size: 9px; color: #808080; }
+.dialer-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.dialer-pad button { padding: 14px 6px; border: 1px outset #d4d0c8; background: #c0c0c0; font-family: Arial, sans-serif; font-weight: 700; font-size: 14px; }
+.dialer-pad button.dial-action { grid-column: span 2; background: #000080; color: #fff; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.dialer-scripts { padding: 10px; border: 1px solid #a0a0a0; background: #ffffe1; font-family: Arial, sans-serif; font-size: 10px; color: #000; }
+.dialer-scripts strong { display: block; font-size: 10px; color: #000080; margin-bottom: 6px; }
+.dialer-scripts p { margin-bottom: 6px; font-style: italic; }
+
+.ferrari-body { display: grid; gap: 16px; }
+.ferrari-placeholder { padding: 24px; border: 2px dashed #808080; background: #c0c0c0; text-align: center; color: #000; display: grid; gap: 8px; place-items: center; }
+.ferrari-placeholder span { font-family: Arial Black, sans-serif; font-size: 12px; }
+.ferrari-placeholder small { font-family: 'Courier New', monospace; font-size: 8px; color: #404040; }
+.ferrari-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ferrari-stats > div { padding: 8px; border: 1px inset #808080; background: #d4d0c8; text-align: center; }
+.ferrari-stats span { display: block; font-size: 8px; color: #404040; }
+.ferrari-stats strong { display: block; font-size: 10px; color: #000; margin-top: 2px; }
+
+.mail-list { display: grid; gap: 10px; }
+.mail-item { padding: 10px; border: 1px solid #a0a0a0; background: #fff; font-family: Arial, sans-serif; }
+.mail-head { display: flex; justify-content: space-between; font-size: 9px; color: #606060; margin-bottom: 6px; }
+.mail-item h3 { font-size: 11px; color: #000080; margin-bottom: 6px; }
+.mail-item p { font-size: 10px; color: #000; line-height: 1.4; }
+
+.game-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.game-stats > div { padding: 10px; border: 1px solid #a0a0a0; background: #c0c0c0; }
+.game-stats span { display: block; font-size: 8px; color: #404040; }
+.game-stats strong { display: block; font-size: 12px; color: #000; margin-top: 2px; }
+.game-stats em { display: block; font-size: 8px; color: #004000; margin-top: 4px; }
+.game-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.game-actions button { padding: 10px 6px; border: 1px outset #d4d0c8; background: #c0c0c0; font-size: 10px; font-family: Arial, sans-serif; }
+.game-actions button:active { border-style: inset; }
+.game-brokers { border: 1px solid #808080; background: #000; color: #00ff00; font-family: 'Courier New', monospace; font-size: 9px; }
+.broker-head, .broker-row { display: grid; grid-template-columns: 1.2fr .8fr .4fr .6fr; gap: 6px; padding: 6px 8px; border-bottom: 1px solid #003300; }
+.broker-head { background: #001100; color: #80ff80; font-weight: 700; }
+
+.recycle-list { display: grid; gap: 8px; }
+.recycle-item { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; padding: 8px; border: 1px solid #a0a0a0; background: #fff; }
+.recycle-item strong { display: block; font-size: 10px; color: #000; }
+.recycle-item span { display: block; font-size: 8px; color: #606060; }
+.recycle-item button { padding: 4px 8px; border: 1px outset #d4d0c8; background: #c0c0c0; font-size: 8px; }
+
+.launcher-user small { display: block; font-size: 8px; color: #b0d0ff; margin-top: 2px; }

@@ -3,17 +3,12 @@ import {
   Grid2X2,
   Menu,
   MonitorUp,
-  Music,
-  Phone,
   Power,
   Search,
   Volume2,
   VolumeX,
   WalletCards,
   X,
-  FileAudio,
-  FileText,
-  FerrisWheel,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { APP_DEFINITIONS } from './data'
@@ -33,6 +28,7 @@ import { FilesApp, MarketsApp, MemoryApp, PortfolioApp, TimesApp, UnlocksApp, Wa
 import { CRTOverlay } from './components/CRTOverlay'
 import { NowPlaying } from './components/NowPlaying'
 import { ShutdownScreen } from './components/ShutdownScreen'
+import { MediaPlayerApp, PhoneDialerApp, FerrariApp, MailApp, GameApp, RecycleApp } from './components/FunApps'
 
 const APP_BY_ID = Object.fromEntries(APP_DEFINITIONS.map((app) => [app.id, app])) as Record<AppId, (typeof APP_DEFINITIONS)[number]>
 const DESKTOP_ICON_ASSETS: Partial<Record<AppId, string>> = {
@@ -59,6 +55,12 @@ const DEFAULT_WINDOW_LAYOUT: Record<AppId, Omit<DesktopWindow, 'open' | 'minimiz
   unlocks: { id: 'unlocks', x: 278, y: 84, width: 820, height: 642, maximized: false },
   memory: { id: 'memory', x: 316, y: 100, width: 735, height: 555, maximized: false },
   files: { id: 'files', x: 290, y: 94, width: 805, height: 575, maximized: false },
+  media: { id: 'media', x: 320, y: 110, width: 620, height: 520, maximized: false },
+  dialer: { id: 'dialer', x: 340, y: 120, width: 420, height: 540, maximized: false },
+  ferrari: { id: 'ferrari', x: 360, y: 130, width: 540, height: 460, maximized: false },
+  mail: { id: 'mail', x: 300, y: 100, width: 720, height: 540, maximized: false },
+  game: { id: 'game', x: 280, y: 80, width: 760, height: 620, maximized: false },
+  recycle: { id: 'recycle', x: 310, y: 110, width: 640, height: 500, maximized: false },
 }
 
 function createWindows(): Record<AppId, DesktopWindow> {
@@ -93,17 +95,6 @@ const initialWallet: WalletState = {
   isLoading: false,
   mode: 'idle',
 }
-
-type FunIcon = { id: string; title: string; icon: typeof Music; action: 'media'|'phone'|'ferrari'|'fax'|'boiler'|'readme'|'wisdom'|'belfort' }
-
-const FUN_ICONS: FunIcon[] = [
-  { id: 'media', title: 'Media Player', icon: Music, action: 'media' },
-  { id: 'phone', title: 'Phone Dialer', icon: Phone, action: 'phone' },
-  { id: 'ferrari', title: 'Ferrari.lnk', icon: FerrisWheel, action: 'ferrari' },
-  { id: 'readme', title: 'README.TXT', icon: FileText, action: 'readme' },
-  { id: 'wisdom', title: 'market_wisdom.txt', icon: FileText, action: 'wisdom' },
-  { id: 'belfort', title: 'TSUN Game', icon: FileAudio, action: 'boiler' },
-]
 
 function App() {
   const isMobile = useMediaQuery('(max-width: 820px)')
@@ -197,6 +188,9 @@ function App() {
       portfolio: { body: 'Stop staring at my PnL.', mood: 'EMBARRASSED' },
       memory: { body: 'You really went digging through my memory?', mood: 'FLUSTERED' },
       files: { body: 'Do not open anything marked DO NOT OPEN.', mood: 'ANNOYED' },
+      ferrari: { body: 'Shortcut corrupted. You cannot afford the gas.', mood: 'SMUG' },
+      recycle: { body: 'Digging through trash? Really?', mood: 'ANNOYED' },
+      mail: { body: 'You read my mail? Brave.', mood: 'FLUSTERED' },
     }
     const reaction = reactions[id]
     if (reaction) {
@@ -301,9 +295,7 @@ function App() {
   const handleDisconnectWallet = useCallback(async () => {
     try {
       await disconnectPhantomWallet()
-    } catch {
-      // Disconnection is best effort. Local public context is cleared either way.
-    }
+    } catch {}
     setWallet(initialWallet)
     addToast({ title: 'WALLET DISCONNECTED', body: 'Public wallet context was removed from this session.', kind: 'secure' })
   }, [addToast])
@@ -321,24 +313,6 @@ function App() {
       setMood('NORMAL')
     }
   }, [addToast])
-
-  const handleFunIcon = useCallback((action: FunIcon['action']) => {
-    if (action === 'media') {
-      addToast({ title: 'MEDIA PLAYER', body: 'TSUN_MIX_98.MP3 loaded. Audio device: not connected. There is no soundtrack. Focus.', kind: 'system' })
-      openApp('files')
-    } else if (action === 'phone') {
-      addToast({ title: 'PHONE DIALER', body: 'Cold Call Trainer: Script v7 - \"This is TSUN from TSUN Systems. Do you have a moment to talk about your risk management?\"', kind: 'system' })
-    } else if (action === 'ferrari') {
-      addToast({ title: 'FERRARI.LNK', body: 'Shortcut corrupted. TSUN: You cannot afford the gas. Stick to SOL.', kind: 'mood' })
-    } else if (action === 'readme') {
-      openApp('files')
-    } else if (action === 'wisdom') {
-      addToast({ title: 'MARKET WISDOM', body: '\"A number without a source is just fan fiction.\" - TSUN, probably annoyed.', kind: 'system' })
-    } else {
-      addToast({ title: 'BOILER ROOM TYCOON', body: 'TSUN: This is a parody workstation. No actual boiler room. Just attitude.', kind: 'system' })
-      openApp('portfolio')
-    }
-  }, [addToast, openApp])
 
   const handleSend = useCallback(async (body: string) => {
     if (sending || !body.trim()) return
@@ -424,12 +398,18 @@ function App() {
       case 'unlocks': return <UnlocksApp />
       case 'memory': return <MemoryApp memory={memory} />
       case 'files': return <FilesApp />
+      case 'media': return <MediaPlayerApp onToast={(t,b)=>addToast({title:t, body:b, kind:'system'})} />
+      case 'dialer': return <PhoneDialerApp onToast={(t,b)=>addToast({title:t, body:b, kind:'system'})} />
+      case 'ferrari': return <FerrariApp onToast={(t,b)=>addToast({title:t, body:b, kind:'system'})} />
+      case 'mail': return <MailApp />
+      case 'game': return <GameApp quota={quota} onMotivate={()=>handleFloorAction('motivate')} onDrill={()=>handleFloorAction('drill')} onLunch={()=>handleFloorAction('lunch')} mood={mood} />
+      case 'recycle': return <RecycleApp onToast={(t,b)=>addToast({title:t, body:b, kind:'system'})} />
       default: return null
     }
-  }, [handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, market, memory, messages, mood, openApp, refreshMarket, sending, token, wallet, typingLabel])
+  }, [handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, market, memory, messages, mood, openApp, refreshMarket, sending, token, wallet, typingLabel, quota, handleFloorAction])
 
   const activeWindowApps = useMemo(() => APP_DEFINITIONS.filter((app) => windows[app.id].open), [windows])
-  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks']
+  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks', 'media', 'dialer', 'ferrari', 'mail', 'game', 'recycle']
   const sol = market.assets.solana
 
   if (isShutdown) {
@@ -445,11 +425,12 @@ function App() {
       <div className="desktop-texture" />
       <CRTOverlay enabled={crtEnabled} />
       <header className="global-bar">
-        <button type="button" className="brand-lockup" onClick={() => openApp('terminal')} aria-label="Open TSUN terminal"><span className="brand-caret">&gt;_</span><span>TSUN//OS</span></button>
+        <button type="button" className="brand-lockup" onClick={() => openApp('terminal')} aria-label="Open TSUN terminal"><span className="brand-caret">&gt;_</span><span>TSUN//OS</span><span className="brand-98">98</span></button>
         <div className="global-ticker">
           <button type="button" onClick={() => openApp('terminal')} className="ticker-chip tsun-ticker"><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : token.address ? 'FEED UNAVAILABLE' : 'AWAITING CONFIG'}</strong>{token.change24h !== null && <em className={token.change24h >= 0 ? 'positive' : 'negative'}>{formatPercent(token.change24h)}</em>}</button>
           <button type="button" onClick={() => openApp('markets')} className="ticker-chip"><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong>{sol && <em className={sol.change24h >= 0 ? 'positive' : 'negative'}>{formatPercent(sol.change24h)}</em>}</button>
           <span className="market-open"><i /> MARKET CONTEXT</span>
+          <span className="ticker-25c">25¢</span>
         </div>
         <div className="global-actions">
           <button type="button" className="global-live" onClick={() => openApp('markets')} title="Open data status"><span className={cn('status-dot', market.status)} /> {market.status === 'live' ? 'LIVE' : market.status === 'loading' ? 'SYNCING' : 'OFFLINE'}</button>
@@ -465,28 +446,31 @@ function App() {
         <section className="desktop-workspace">
           <div className="desktop-side-stack">
             <aside className="desktop-market-monitor" aria-label="TSUN desktop market monitor">
-              <div className="monitor-title"><span>TSUN//OS MONITOR</span><i /></div>
+              <div className="monitor-title"><span>TSUN 98 // MONITOR</span><i /></div>
               <div className="monitor-cam">CAM 04 · TRADING FLOOR 4 — SHIBUYA</div>
               <div className="monitor-actions">
                 <button type="button" onClick={() => handleFloorAction('motivate')}>📣 Motivate</button>
                 <button type="button" onClick={() => handleFloorAction('drill')}>👮 Drill</button>
                 <button type="button" onClick={() => handleFloorAction('lunch')}>🍕 Lunch</button>
               </div>
-              <div className="monitor-quota">Daily quota ${quota.toLocaleString()} / $250.0k</div>
+              <div className="monitor-quota">Daily quota ${quota.toLocaleString()} / $250.0k — 12 brokers {sending ? '1 on line' : '0 on lines'}</div>
+              <div className="monitor-broker-table">
+                <div className="broker-mini-head"><span>NAME</span><span>CALLS</span><span>GROSS</span></div>
+                <div><span>Stevie 2-Phones</span><span>142</span><span>$12k</span></div>
+                <div><span>Sal 'Moose'</span><span>98</span><span>$8k</span></div>
+                <div><span>TSUN AI</span><span>0</span><span>VERIFY</span></div>
+              </div>
               <div><span>BTC</span><strong>{market.assets.bitcoin ? formatCurrency(market.assets.bitcoin.priceUsd) : 'UNAVAILABLE'}</strong></div>
               <div><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong><em className={sol && sol.change24h >= 0 ? 'positive' : 'negative'}>{sol ? formatPercent(sol.change24h) : 'NO SOURCE'}</em></div>
               <div><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : 'UNAVAILABLE'}</strong></div>
-              <div className="monitor-brokers">
-                <span>12 brokers</span><b>{sending ? '1 on line' : '0 on lines'}</b>
-              </div>
               <footer><span>MOOD {mood}</span><b>{market.status === 'live' ? 'ONLINE' : 'SYNCING'}</b></footer>
             </aside>
 
             <NowPlaying onToast={(title, body) => addToast({ title, body, kind: 'system' })} />
 
             <aside className="parody-disclaimer">
-              <span>A note about all this</span>
-              <p>Parody fan project. TSUN is a fictional 24-year-old adult AI. Token metrics are verified when available. Every figure here is invented until a real source is configured. Not financial advice.</p>
+              <span>A note about all this — TSUN 98</span>
+              <p>Parody fan project. TSUN is fictional 24yo adult AI. Token metrics verified when available. Every figure invented until real source. Not financial advice. Inspired by stratton.capital vibe.</p>
             </aside>
           </div>
 
@@ -495,11 +479,7 @@ function App() {
               const app = APP_BY_ID[id]
               const Icon = app.icon
               const iconAsset = DESKTOP_ICON_ASSETS[id]
-              return <button type="button" className={cn('desktop-icon', selectedDesktopIcon === id && 'selected')} key={id} onClick={() => setSelectedDesktopIcon(id)} onDoubleClick={() => openApp(id)} onKeyDown={(event) => { if (event.key === 'Enter') openApp(id) }}><span>{iconAsset ? <img src={iconAsset} alt="" /> : <Icon size={23} />}</span><small>{app.shortTitle}</small></button>
-            })}
-            {FUN_ICONS.map((fun) => {
-              const Icon = fun.icon
-              return <button type="button" className={cn('desktop-icon fun-icon', selectedDesktopIcon === fun.id && 'selected')} key={fun.id} onClick={() => setSelectedDesktopIcon(fun.id)} onDoubleClick={() => handleFunIcon(fun.action)} onKeyDown={(e)=>{ if(e.key==='Enter') handleFunIcon(fun.action)}}><span><Icon size={18} /></span><small>{fun.title}</small></button>
+              return <button type="button" className={cn('desktop-icon', selectedDesktopIcon === id && 'selected')} key={id} onClick={() => setSelectedDesktopIcon(id)} onDoubleClick={() => openApp(id)} onKeyDown={(event) => { if (event.key === 'Enter') openApp(id) }}><span>{iconAsset ? <img src={iconAsset} alt="" onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none' }} /> : <Icon size={23} />}</span><small>{app.shortTitle}</small></button>
             })}
           </div>
           {APP_DEFINITIONS.map((app) => {
@@ -518,7 +498,7 @@ function App() {
               live={app.id === 'terminal' || app.id === 'markets'}
             >{appContent(app.id)}</WindowFrame>
           })}
-          {activeWindowApps.length === 0 && <div className="desktop-empty"><MonitorUp size={29} /><strong>NO APPLICATIONS OPEN</strong><span>Open a system app from the dock or desktop. Try Media Player or Phone Dialer.</span></div>}
+          {activeWindowApps.length === 0 && <div className="desktop-empty"><MonitorUp size={29} /><strong>NO APPLICATIONS OPEN</strong><span>Open a system app from the dock or desktop. Try Media Player or Boiler Room Tycoon.</span></div>}
         </section>
       )}
 
@@ -540,13 +520,13 @@ function Taskbar({ activeApps, windows, onOpen, onToggleLauncher, currentTime }:
     <footer className="taskbar">
       <button type="button" className="taskbar-start" onClick={onToggleLauncher}><img src="/98-icons/start.png" alt="" /><span>Start</span></button>
       <div className="taskbar-apps">{activeApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} className={cn('taskbar-app', windows[id].minimized && 'minimized')} onClick={() => onOpen(id)}><Icon size={14} /><span>{app.shortTitle}</span></button> })}</div>
-      <div className="taskbar-status"><span className="taskbar-status-label">LOCAL SESSION</span><span>{time} UTC</span><button type="button" className="power-button" title="Session is browser local only"><Power size={14} /></button></div>
+      <div className="taskbar-status"><span className="taskbar-status-label">TSUN 98 — LOCAL SESSION</span><span>{time} UTC</span><button type="button" className="power-button" title="Session is browser local only"><Power size={14} /></button></div>
     </footer>
   )
 }
 
 function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled, onShutdown, onToast }: { onOpen: (id: AppId) => void; onClose: () => void; onToggleCrt: () => void; crtEnabled: boolean; onShutdown: () => void; onToast: (t: Omit<Toast,'id'>)=>void }) {
-  const recentApps: AppId[] = ['terminal', 'chat', 'markets', 'files']
+  const recentApps: AppId[] = ['terminal', 'chat', 'markets', 'game']
   const systemLinks: Array<{ label: string; id?: AppId; gag?: string }> = [
     { label: 'My Computer', id: 'terminal' },
     { label: 'Documents', id: 'files' },
@@ -559,9 +539,9 @@ function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled, onShutdown, onT
   ]
   return (
     <aside className="app-launcher xp-start-menu">
-      <div className="launcher-user"><span className="start-user-mark">T</span><strong>TSUN OPERATOR</strong><button type="button" onClick={onClose} aria-label="Close Start menu"><X size={14} /></button></div>
+      <div className="launcher-user"><span className="start-user-mark">T</span><div><strong>TSUN OPERATOR</strong><small>TSUN 98 — SHIBUYA FLOOR 4</small></div><button type="button" onClick={onClose} aria-label="Close Start menu"><X size={14} /></button></div>
       <div className="start-columns">
-        <div className="start-recent"><span className="start-column-label">Recently used</span>{recentApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} onClick={() => onOpen(id)}><Icon size={22} /><span><strong>{app.title}</strong><small>{app.description}</small></span></button> })}<button type="button" className="all-programs" onClick={() => onOpen('terminal')}><Grid2X2 size={16} /><strong>All Programs</strong><ChevronDown size={14} /></button></div>
+        <div className="start-recent"><span className="start-column-label">Recently used — TSUN 98</span>{recentApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} onClick={() => onOpen(id)}><Icon size={22} /><span><strong>{app.title}</strong><small>{app.description}</small></span></button> })}<button type="button" className="all-programs" onClick={() => onOpen('terminal')}><Grid2X2 size={16} /><strong>All Programs</strong><ChevronDown size={14} /></button></div>
         <div className="start-system"><span className="start-column-label">TSUN//OS</span>{systemLinks.map((item) => <button type="button" key={item.label} onClick={() => {
           if (item.id) onOpen(item.id)
           else if (item.gag) { onToast({ title: 'TSUN 98 SEARCH', body: item.gag, kind: 'mood' }); onClose() }
@@ -574,10 +554,10 @@ function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled, onShutdown, onT
 }
 
 function MoreDrawer({ onOpen, onClose }: { onOpen: (id: AppId) => void; onClose: () => void }) {
-  const moreApps: AppId[] = ['wallet', 'portfolio', 'x', 'times', 'unlocks', 'files', 'memory']
+  const moreApps: AppId[] = ['wallet', 'portfolio', 'x', 'times', 'unlocks', 'files', 'memory', 'media', 'dialer', 'mail', 'game', 'recycle', 'ferrari']
   return (
     <aside className="more-drawer">
-      <div className="more-drawer-header"><div><span className="eyebrow">TSUN//OS</span><h2>More applications</h2></div><button type="button" onClick={onClose}><X size={17} /></button></div>
+      <div className="more-drawer-header"><div><span className="eyebrow">TSUN 98 // OS</span><h2>More applications</h2></div><button type="button" onClick={onClose}><X size={17} /></button></div>
       <div className="more-app-list">{moreApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} onClick={() => onOpen(id)}><Icon size={18} /><span><strong>{app.shortTitle}</strong><small>{app.description}</small></span><ChevronDown size={15} /></button> })}</div>
     </aside>
   )
