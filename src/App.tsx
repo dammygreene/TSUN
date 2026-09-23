@@ -28,6 +28,7 @@ import { FilesApp, MarketsApp, MemoryApp, PortfolioApp, TimesApp, UnlocksApp, Wa
 import { CRTOverlay } from './components/CRTOverlay'
 import { NowPlaying } from './components/NowPlaying'
 import { ShutdownScreen } from './components/ShutdownScreen'
+import { TickerTape } from './components/TickerTape'
 import { MediaPlayerApp, PhoneDialerApp, FerrariApp, MailApp, GameApp, RecycleApp } from './components/FunApps'
 
 const APP_BY_ID = Object.fromEntries(APP_DEFINITIONS.map((app) => [app.id, app])) as Record<AppId, (typeof APP_DEFINITIONS)[number]>
@@ -501,6 +502,8 @@ function App() {
           {activeWindowApps.length === 0 && <div className="desktop-empty"><MonitorUp size={29} /><strong>NO APPLICATIONS OPEN</strong><span>Open a system app from the dock or desktop. Try Media Player or Boiler Room Tycoon.</span></div>}
         </section>
       )}
+
+      {!isMobile && <TickerTape />}
 
       {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onShutdown={triggerShutdown} onClose={() => setLauncherOpen(false)} onToggleCrt={() => setCrtEnabled((value) => !value)} crtEnabled={crtEnabled} onToast={addToast} />}
       {moreOpen && <MoreDrawer onOpen={openApp} onClose={() => setMoreOpen(false)} />}
