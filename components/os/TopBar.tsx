@@ -36,6 +36,14 @@ export function TopBar({ onOpenApp }: { onOpenApp: (app: "terminal" | "markets")
       </span>
       <button
         onClick={() => onOpenApp("terminal")}
+        className="flex items-center gap-1.5 rounded px-1 py-1 transition-colors hover:bg-tsun-panel sm:hidden"
+        aria-label="Open TSUN Terminal"
+      >
+        <span className="text-tsun-text">{tsun?.priceUsd != null ? fmtPrice(tsun.priceUsd) : "--"}</span>
+        <span className={cn((tsun?.change24h ?? 0) >= 0 ? "text-profit" : "text-loss")}>{fmtChg(tsun?.change24h)}</span>
+      </button>
+      <button
+        onClick={() => onOpenApp("terminal")}
         className="hidden items-center gap-2 rounded px-2 py-1 transition-colors hover:bg-tsun-panel sm:flex"
         aria-label="Open TSUN Terminal"
       >

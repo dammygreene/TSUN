@@ -125,7 +125,7 @@ export function BootScreen() {
         </div>
         <div className="flex items-center justify-between pb-4">
           <span className="text-[11px] text-tsun-dim">
-            {ORDER.indexOf(bootStage) + 1}/{ORDER.length} {bootStage}
+            {Math.max(1, ORDER.indexOf(bootStage) + 1)}/{ORDER.length} {bootStage}
           </span>
           {started && bootStage !== "READY" && (
             <button

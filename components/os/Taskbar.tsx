@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { APPS } from "@/components/os/registry";
 import { formatClock, StatusDot, useNow } from "@/components/os/ui";
+import { playSound } from "@/lib/sound/engine";
 import { useTsunStore } from "@/lib/state/store";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +74,7 @@ export function Taskbar() {
               role="menuitem"
               onClick={() => {
                 openApp(app.id);
+                playSound("open");
                 setLauncherOpen(false);
               }}
               className="flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-tsun-text transition-colors hover:bg-tsun-panel2"

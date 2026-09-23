@@ -5,6 +5,7 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { appById } from "@/components/os/registry";
+import { playSound } from "@/lib/sound/engine";
 import { useTsunStore, type AppId, type WindowState } from "@/lib/state/store";
 import { cn } from "@/lib/utils";
 import { DataBadge } from "@/components/os/ui";
@@ -69,7 +70,19 @@ function WindowChrome({ win }: { win: WindowState }) {
         active ? "border-tsun-borderLight" : "border-tsun-border",
         win.maximized && "inset-2",
       )}
-      style={win.maximized ? { zIndex: win.z } : { left: win.x, top: win.y, width: win.w, height: win.h, zIndex: win.z }}
+      style={
+        win.maximized
+          ? { zIndex: win.z }
+          : {
+              left: win.x,
+              top: win.y,
+              width: win.w,
+              height: win.h,
+              maxWidth: "calc(100% - 16px)",
+              maxHeight: "calc(100% - 16px)",
+              zIndex: win.z,
+            }
+      }
     >
       <div
         className="flex h-10 shrink-0 cursor-grab select-none items-center gap-2 border-b border-tsun-border bg-tsun-graphite px-3 active:cursor-grabbing"
@@ -141,6 +154,7 @@ export function DesktopArea() {
                 pushNotice({ title: "RECYCLE BIN", body: "Empty. Like your trading journal.", kind: "character" });
               } else {
                 openApp(icon.id as AppId);
+                playSound("open");
               }
             }}
             className="group flex flex-col items-center gap-1 rounded-md px-1 py-2 transition-colors hover:bg-white/5"

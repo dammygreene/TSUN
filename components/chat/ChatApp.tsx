@@ -5,7 +5,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { SectionLabel, TsunAvatar } from "@/components/os/ui";
+import { buildMemorySummary } from "@/lib/ai/character";
 import { addMemoryNote, getOrCreateMemory, loadConversation, recordInteraction, saveConversation, saveMemory } from "@/lib/memory/store";
+import { playSound } from "@/lib/sound/engine";
 import { useTsunStore } from "@/lib/state/store";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, RelationshipLevel, ToolCardData, TsunMood } from "@/types/tsun";
@@ -22,6 +24,7 @@ const STARTERS = [
 interface ChatApiResponse {
   text: string;
   intent: string;
+  engine?: string;
   suggestedMood: TsunMood | null;
   toolCard?: ToolCardData;
   memoryNotes: string[];
@@ -108,6 +111,7 @@ export default function ChatApp() {
   const [infoOpen, setInfoOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const seeded = useRef(false);
+  const recentUserTexts = useRef<string[]>([]);
 
   useEffect(() => {
     if (seeded.current) return;
@@ -157,7 +161,13 @@ export default function ChatApp() {
     saveConversation(next);
     setInput("");
     setSending(true);
+    playSound("send");
+    // Repeated question detection: same normalized text twice recently.
+    const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
+    const repeated = recentUserTexts.current.includes(normalized);
+    recentUserTexts.current = [...recentUserTexts.current, normalized].slice(-3);
     try {
+      const memSnapshot = getOrCreateMemory();
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -167,9 +177,34 @@ export default function ChatApp() {
           relationship,
           interactionCount,
           walletAddress: publicKey?.toBase58() ?? null,
-          userId: getOrCreateMemory().userId,
+          userId: memSnapshot.userId,
+          memorySummary: buildMemorySummary({
+            interactionCount: memSnapshot.interactionCount,
+            firstSeenAt: memSnapshot.firstSeenAt,
+            discussedAssets: memSnapshot.discussedAssets,
+            notes: memSnapshot.notes,
+            summaries: memSnapshot.summaries,
+          }),
+          history: messages.slice(-6).map((m) => ({
+            role: m.role === "user" ? "user" : "assistant",
+            text: m.text.slice(0, 800),
+          })),
         }),
       });
+      if (res.status === 429) {
+        const limited: ChatMessage = {
+          id: newId(),
+          role: "tsun",
+          text: "Slow down. Even I have rate limits, and you just found them. Breathe, look at the charts, try again in a minute.",
+          createdAt: new Date().toISOString(),
+          mood: "ANNOYED",
+        };
+        const withLimited = [...next, limited];
+        setMessages(withLimited);
+        saveConversation(withLimited);
+        playSound("error");
+        return;
+      }
       if (!res.ok) throw new Error(`chat failed: ${res.status}`);
       const data = (await res.json()) as ChatApiResponse;
       const reply: ChatMessage = {
@@ -183,8 +218,10 @@ export default function ChatApp() {
       const withReply = [...next, reply];
       setMessages(withReply);
       saveConversation(withReply);
+      playSound("message");
       // Character state updates.
-      if (data.suggestedMood) requestMood(data.suggestedMood, `chat intent ${data.intent}`);
+      if (repeated) requestMood("ANNOYED", "repeated question");
+      else if (data.suggestedMood) requestMood(data.suggestedMood, `chat intent ${data.intent}`);
       bumpInteraction();
       addRelationship("message");
       if (data.topics.length > 0) addRelationship("meaningful");
@@ -206,6 +243,7 @@ export default function ChatApp() {
       const withErr = [...next, err];
       setMessages(withErr);
       saveConversation(withErr);
+      playSound("error");
     } finally {
       setSending(false);
     }
