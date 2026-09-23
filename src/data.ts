@@ -15,6 +15,9 @@ import {
   Trophy,
   WalletCards,
   Car,
+  Printer,
+  Info,
+  HelpCircle,
 } from 'lucide-react'
 import type { LoreFile, Milestone, NewsStory, TsunAppDefinition, TsunPosition, TsunTrade } from './types'
 
@@ -162,6 +165,33 @@ export const APP_DEFINITIONS: TsunAppDefinition[] = [
     desktop: true,
     mobile: false,
     description: 'Deleted files and humility',
+  },
+  {
+    id: 'fax',
+    title: 'FAX MACHINE',
+    shortTitle: 'Fax Machine',
+    icon: Printer,
+    desktop: true,
+    mobile: false,
+    description: 'Send a fax to 1989',
+  },
+  {
+    id: 'about',
+    title: 'ABOUT TSUN 98',
+    shortTitle: 'About',
+    icon: Info,
+    desktop: true,
+    mobile: true,
+    description: 'System info and parody disclosure',
+  },
+  {
+    id: 'howitworks',
+    title: 'HOW IT WORKS',
+    shortTitle: 'How It Works',
+    icon: HelpCircle,
+    desktop: true,
+    mobile: true,
+    description: 'Setup guide for TSUN 98',
   },
 ]
 

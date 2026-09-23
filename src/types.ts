@@ -38,6 +38,9 @@ export type AppId =
   | 'mail'
   | 'game'
   | 'recycle'
+  | 'fax'
+  | 'about'
+  | 'howitworks'
 
 export type DataStatus = 'live' | 'loading' | 'stale' | 'unavailable'
 

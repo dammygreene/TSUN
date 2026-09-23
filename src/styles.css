@@ -1256,3 +1256,34 @@ body { background: #3a91c9; }
 .tape-scroll { flex: 1; overflow: hidden; white-space: nowrap; }
 .tape-content { display: inline-block; animation: tape-scroll 60s linear infinite; }
 @keyframes tape-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Fax, About, HowItWorks */
+.fax-body { display: grid; gap: 12px; max-width: 480px; }
+.fax-paper { background: #fff; border: 1px solid #808080; padding: 12px; font-family: 'Courier New', monospace; display: grid; gap: 8px; }
+.fax-paper span { font-size: 9px; color: #404040; }
+.fax-paper textarea { width: 100%; border: 1px inset #808080; padding: 8px; font-family: 'Courier New', monospace; font-size: 11px; background: #ffffe1; }
+.fax-paper em { font-size: 8px; color: #808080; }
+
+.about-body { display: grid; gap: 16px; }
+.about-logo { font-family: Arial Black, sans-serif; font-size: 24px; color: #000080; background: #c0c0c0; border: 2px outset #d4d0c8; padding: 12px; text-align: center; }
+.about-specs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.about-specs > div { padding: 8px; border: 1px inset #808080; background: #d4d0c8; }
+.about-specs span { display: block; font-size: 8px; color: #606060; }
+.about-specs strong { display: block; font-size: 10px; color: #000; margin-top: 2px; font-family: 'Courier New', monospace; }
+.about-disclaimer { padding: 12px; background: #ffffe1; border: 1px solid #a0a0a0; font-family: Arial, sans-serif; font-size: 10px; color: #000; line-height: 1.5; }
+.about-disclaimer strong { display: block; color: #000080; margin-bottom: 6px; }
+.about-credits { padding: 8px; background: #000; color: #00ff00; font-family: 'Courier New', monospace; font-size: 9px; border: 1px solid #003300; }
+.about-credits span { display: block; font-size: 8px; color: #80ff80; }
+
+.how-steps { display: grid; gap: 12px; }
+.how-step { display: grid; grid-template-columns: 36px 1fr; gap: 10px; padding: 10px; border: 1px solid #a0a0a0; background: #fff; }
+.how-step > span { display: grid; place-items: center; width: 32px; height: 32px; background: #000080; color: #fff; font-family: Arial Black, sans-serif; font-size: 12px; }
+.how-step strong { display: block; font-size: 11px; color: #000080; margin-bottom: 4px; }
+.how-step p { font-size: 10px; color: #000; line-height: 1.4; margin-bottom: 8px; font-family: Arial, sans-serif; }
+
+/* Screensaver */
+.screensaver { position: fixed; inset: 0; z-index: 10000; background: #000; display: grid; place-items: center; cursor: none; overflow: hidden; }
+.screensaver-logo { font-family: Arial Black, sans-serif; font-size: 48px; color: #ffff00; animation: screensaver-bounce 3s ease-in-out infinite alternate; text-shadow: 2px 2px 0 #ff0000; }
+.screensaver-text { position: absolute; bottom: 40px; color: #00ff00; font-family: 'Courier New', monospace; font-size: 12px; animation: screensaver-blink 1s step-end infinite; }
+@keyframes screensaver-bounce { from { transform: translate(-20px, -20px) rotate(-2deg); } to { transform: translate(20px, 20px) rotate(2deg); } }
+@keyframes screensaver-blink { 50% { opacity: 0; } }

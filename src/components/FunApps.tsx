@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Car, Phone, Music, Mail, Gamepad2, Recycle, Trash2, Play, Pause, Square, Delete, PhoneCall } from 'lucide-react'
+import { Car, Phone, Music, Mail, Gamepad2, Recycle, Trash2, Play, Pause, Square, Delete, PhoneCall, Printer, Info, HelpCircle } from 'lucide-react'
 
 export function MediaPlayerApp({ onToast }: { onToast: (title: string, body: string) => void }) {
   const [playing, setPlaying] = useState(false)
@@ -148,6 +148,76 @@ export function RecycleApp({ onToast }: { onToast: (title: string, body: string)
       <div className="app-page-header"><div><span className="eyebrow">RECYCLE BIN — 5 ITEMS</span><h1><Recycle size={18}/> Recycle Bin</h1><p>Deleted files TSUN forgot to delete. Like Stratton's bin, but with more attitude mismatches.</p></div><span className="mode-badge muted">BIN</span></div>
       <div className="recycle-list">
         {files.map(f => <div key={f.name} className="recycle-item"><Trash2 size={16}/><div><strong>{f.name}</strong><span>{f.size} — {f.note}</span></div><button onClick={() => onToast('RECYCLE BIN', `${f.name}: Cannot restore. TSUN: Some files should stay deleted.`)}>RESTORE</button></div>)}
+      </div>
+    </div>
+  )
+}
+
+export function FaxApp({ onToast }: { onToast: (title: string, body: string) => void }) {
+  const [sending, setSending] = useState(false)
+  const [page, setPage] = useState('MARKET IS WRONG — VERIFY FIRST')
+  const send = () => {
+    setSending(true)
+    setTimeout(() => {
+      setSending(false)
+      onToast('FAX MACHINE', `Fax sent to 1989: "${page}". Response: "We are busy. The tape is moving."`)
+    }, 1500)
+  }
+  return (
+    <div className="fun-app fax-app app-scroll">
+      <div className="app-page-header"><div><span className="eyebrow">FAX MACHINE — DIALING 1989</span><h1><Printer size={18}/> Fax Machine</h1><p>Send a fax to the past. Like Stratton's fax, but with more verification.</p></div><span className="mode-badge">FAX</span></div>
+      <div className="fax-body">
+        <div className="fax-paper">
+          <span>TO: WALL STREET, 1989</span>
+          <span>FROM: TSUN 98, SHIBUYA FLOOR 4</span>
+          <textarea value={page} onChange={e=>setPage(e.target.value)} rows={6} />
+          <em>STATUS: {sending ? 'SENDING...' : 'READY'}</em>
+        </div>
+        <button className="system-button primary" onClick={send} disabled={sending}>{sending ? 'SENDING...' : 'SEND FAX'}</button>
+        <div className="fun-note">Fax machine is parody. No actual fax. Just attitude and thermal paper.</div>
+      </div>
+    </div>
+  )
+}
+
+export function AboutApp() {
+  return (
+    <div className="fun-app about-app app-scroll">
+      <div className="app-page-header"><div><span className="eyebrow">TSUN 98 — SYSTEM PROPERTIES</span><h1><Info size={18}/> About TSUN 98</h1><p>TSUN//OS is a parody workstation. Inspired by stratton.capital vibe, built with TSUN attitude.</p></div><span className="mode-badge">TSUN 98</span></div>
+      <div className="about-body">
+        <div className="about-logo">TSUN//OS 98</div>
+        <div className="about-specs">
+          <div><span>VERSION</span><strong>2.04 — SHIBUYA FLOOR 4</strong></div>
+          <div><span>BIOS</span><strong>TSUN SYSTEMS BIOS v2.04</strong></div>
+          <div><span>CPU</span><strong>80486DX2 / TSUN CORE @ 66MHz</strong></div>
+          <div><span>RAM</span><strong>8192K (640K is for retail)</strong></div>
+          <div><span>MOUSE</span><strong>Gold-plated, why, who approved this</strong></div>
+          <div><span>ATTITUDE</span><strong>Coprocessor present but unlicensed</strong></div>
+        </div>
+        <div className="about-disclaimer">
+          <strong>A note about all this</strong>
+          <p>Parody fan project. TSUN is a fictional 24-year-old adult AI. Token TSUN on Solana, pair TSUN/SOL. Portfolio is SIMULATED MVP. Token data stays unconfigured unless VITE_TSUN_TOKEN_ADDRESS is set. Only SOL and BTC are verified (CoinGecko). Every figure here is invented until a real source is configured. Not financial advice. Inspired by stratton.capital's Win95/98 OS parody, but with TSUN's rude/hostile 40%, financial arrogance 25%, bitter ex-Wall-Street 15%, impatient superiority 10%, Crypto X brainrot 5%, accidental affection 5%.</p>
+          <p>TSUN lies about interpretation, never about facts. No invented numbers. No profit promises. Never asks for keys.</p>
+        </div>
+        <div className="about-credits">
+          <span>BUILT WITH</span>
+          <strong>React + Vite + TSUN attitude + Stratton 95 vibe</strong>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function HowItWorksApp({ onOpen }: { onOpen: (id: any) => void }) {
+  return (
+    <div className="fun-app how-app app-scroll">
+      <div className="app-page-header"><div><span className="eyebrow">SETUP — TSUN 98</span><h1><HelpCircle size={18}/> How It Works</h1><p>Setup guide for TSUN 98. Like Stratton's How It Works Setup, but with more verification.</p></div><span className="mode-badge">SETUP</span></div>
+      <div className="how-steps">
+        <div className="how-step"><span>01</span><div><strong>VERIFY DATA FIRST</strong><p>Only provider response becomes a number. Everything else is explicitly unavailable. No stale data displayed as live.</p></div></div>
+        <div className="how-step"><span>02</span><div><strong>TALK TO TSUN</strong><p>Chat uses OpenRouter primary (Claude Sonnet 4.5) + Gemini fallback. Verified facts from market/token/wallet are injected. TSUN is rude but truthful.</p><button className="system-button ghost" onClick={()=>onOpen('chat')}>OPEN CHAT</button></div></div>
+        <div className="how-step"><span>03</span><div><strong>TRADING FLOOR</strong><p>Motivate / Drill / Lunch buttons in monitor + Boiler Room Tycoon game. Daily quota $0 / $250k. 12 brokers 0 on lines. Make calls, close deals, verify data.</p><button className="system-button ghost" onClick={()=>onOpen('game')}>OPEN TYCOON</button></div></div>
+        <div className="how-step"><span>04</span><div><strong>MEDIA & FAX</strong><p>Now Playing tape deck TSUN_MIX_98.MP3, Phone Dialer cold call trainer, Fax to 1989, Ferrari.lnk corrupted shortcut. All parody, all fun.</p></div></div>
+        <div className="how-step"><span>05</span><div><strong>NO CUSTODY, NO FABRICATION</strong><p>Wallet inspection is public read only. Never paste seed phrases. Portfolio is SIMULATED MVP. This is a fan project.</p></div></div>
       </div>
     </div>
   )

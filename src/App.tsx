@@ -29,7 +29,7 @@ import { CRTOverlay } from './components/CRTOverlay'
 import { NowPlaying } from './components/NowPlaying'
 import { ShutdownScreen } from './components/ShutdownScreen'
 import { TickerTape } from './components/TickerTape'
-import { MediaPlayerApp, PhoneDialerApp, FerrariApp, MailApp, GameApp, RecycleApp } from './components/FunApps'
+import { MediaPlayerApp, PhoneDialerApp, FerrariApp, MailApp, GameApp, RecycleApp, FaxApp, AboutApp, HowItWorksApp } from './components/FunApps'
 
 const APP_BY_ID = Object.fromEntries(APP_DEFINITIONS.map((app) => [app.id, app])) as Record<AppId, (typeof APP_DEFINITIONS)[number]>
 const DESKTOP_ICON_ASSETS: Partial<Record<AppId, string>> = {
@@ -62,6 +62,9 @@ const DEFAULT_WINDOW_LAYOUT: Record<AppId, Omit<DesktopWindow, 'open' | 'minimiz
   mail: { id: 'mail', x: 300, y: 100, width: 720, height: 540, maximized: false },
   game: { id: 'game', x: 280, y: 80, width: 760, height: 620, maximized: false },
   recycle: { id: 'recycle', x: 310, y: 110, width: 640, height: 500, maximized: false },
+  fax: { id: 'fax', x: 330, y: 120, width: 560, height: 500, maximized: false },
+  about: { id: 'about', x: 300, y: 90, width: 700, height: 600, maximized: false },
+  howitworks: { id: 'howitworks', x: 290, y: 80, width: 740, height: 620, maximized: false },
 }
 
 function createWindows(): Record<AppId, DesktopWindow> {
@@ -120,6 +123,9 @@ function App() {
   const [crtEnabled, setCrtEnabled] = useLocalStorage('tsun-os-crt', true)
   const [selectedDesktopIcon, setSelectedDesktopIcon] = useState<string | null>(null)
   const [quota, setQuota] = useState(0)
+  const [isScreensaver, setIsScreensaver] = useState(false)
+  const [brandClicks, setBrandClicks] = useState(0)
+  const screensaverTimer = useRef<number | null>(null)
   const returnedToastShown = useRef(false)
   const previousSolChange = useRef<number | null>(null)
 
@@ -154,6 +160,23 @@ function App() {
     const interval = window.setInterval(() => void refreshMarket(), 60_000)
     return () => window.clearInterval(interval)
   }, [refreshMarket])
+
+  // Screensaver after 45s inactivity — Stratton 95 style
+  useEffect(() => {
+    if (isShutdown || !bootComplete) return
+    const reset = () => {
+      if (isScreensaver) return
+      if (screensaverTimer.current) window.clearTimeout(screensaverTimer.current)
+      screensaverTimer.current = window.setTimeout(() => setIsScreensaver(true), 45000)
+    }
+    const events: Array<keyof WindowEventMap> = ['mousemove', 'keydown', 'click', 'touchstart']
+    events.forEach(e => window.addEventListener(e, reset))
+    reset()
+    return () => {
+      events.forEach(e => window.removeEventListener(e, reset))
+      if (screensaverTimer.current) window.clearTimeout(screensaverTimer.current)
+    }
+  }, [isShutdown, bootComplete, isScreensaver])
 
   const finishBoot = useCallback(() => {
     setHasBootedBefore(true)
@@ -210,6 +233,21 @@ function App() {
     })
     setLauncherOpen(false)
   }, [addToast, isMobile])
+
+  const handleBrandEasterEgg = useCallback(() => {
+    const next = brandClicks + 1
+    setBrandClicks(next)
+    if (next >= 5) {
+      setBrandClicks(0)
+      addToast({ title: 'TSUN 98 EASTER EGG', body: 'You clicked TSUN 5 times. TSUN: ...Not that I like you noticing. Mood: DERE unlocked for 10s.', kind: 'mood' })
+      const prev = mood
+      setMood('DERE')
+      setTimeout(() => setMood(prev), 10000)
+    } else if (next === 3) {
+      addToast({ title: 'TSUN//OS', body: `Clicked ${next} times. Keep going and I might pretend to care.`, kind: 'system' })
+    }
+    openApp('terminal')
+  }, [brandClicks, addToast, mood, openApp])
 
   const focusWindow = useCallback((id: AppId) => {
     setWindows((current) => {
@@ -405,12 +443,15 @@ function App() {
       case 'mail': return <MailApp />
       case 'game': return <GameApp quota={quota} onMotivate={()=>handleFloorAction('motivate')} onDrill={()=>handleFloorAction('drill')} onLunch={()=>handleFloorAction('lunch')} mood={mood} />
       case 'recycle': return <RecycleApp onToast={(t,b)=>addToast({title:t, body:b, kind:'system'})} />
+      case 'fax': return <FaxApp onToast={(t,b)=>addToast({title:t, body:b, kind:'system'})} />
+      case 'about': return <AboutApp />
+      case 'howitworks': return <HowItWorksApp onOpen={(id)=>openApp(id as AppId)} />
       default: return null
     }
   }, [handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, market, memory, messages, mood, openApp, refreshMarket, sending, token, wallet, typingLabel, quota, handleFloorAction])
 
   const activeWindowApps = useMemo(() => APP_DEFINITIONS.filter((app) => windows[app.id].open), [windows])
-  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks', 'media', 'dialer', 'ferrari', 'mail', 'game', 'recycle']
+  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks', 'media', 'dialer', 'ferrari', 'mail', 'game', 'recycle', 'fax', 'about', 'howitworks']
   const sol = market.assets.solana
 
   if (isShutdown) {
@@ -421,12 +462,21 @@ function App() {
     return <BootScreen mood={mood} relationship={memory.relationship} marketStatus={market.status} returning={hasBootedBefore} onComplete={finishBoot} />
   }
 
+  if (isScreensaver) {
+    return (
+      <div className="screensaver" onClick={() => setIsScreensaver(false)} onKeyDown={() => setIsScreensaver(false)} tabIndex={0} role="button" aria-label="Screensaver, click to wake">
+        <div className="screensaver-logo">TSUN 98</div>
+        <div className="screensaver-text">TSUN IS WATCHING — MOVE MOUSE OR CLICK TO WAKE — PRESS ANY KEY</div>
+      </div>
+    )
+  }
+
   return (
     <main className={cn('tsun-os', `mood-${mood.toLowerCase()}`)}>
       <div className="desktop-texture" />
       <CRTOverlay enabled={crtEnabled} />
       <header className="global-bar">
-        <button type="button" className="brand-lockup" onClick={() => openApp('terminal')} aria-label="Open TSUN terminal"><span className="brand-caret">&gt;_</span><span>TSUN//OS</span><span className="brand-98">98</span></button>
+        <button type="button" className="brand-lockup" onClick={handleBrandEasterEgg} aria-label="Open TSUN terminal"><span className="brand-caret">&gt;_</span><span>TSUN//OS</span><span className="brand-98">98</span></button>
         <div className="global-ticker">
           <button type="button" onClick={() => openApp('terminal')} className="ticker-chip tsun-ticker"><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : token.address ? 'FEED UNAVAILABLE' : 'AWAITING CONFIG'}</strong>{token.change24h !== null && <em className={token.change24h >= 0 ? 'positive' : 'negative'}>{formatPercent(token.change24h)}</em>}</button>
           <button type="button" onClick={() => openApp('markets')} className="ticker-chip"><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong>{sol && <em className={sol.change24h >= 0 ? 'positive' : 'negative'}>{formatPercent(sol.change24h)}</em>}</button>
@@ -557,7 +607,7 @@ function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled, onShutdown, onT
 }
 
 function MoreDrawer({ onOpen, onClose }: { onOpen: (id: AppId) => void; onClose: () => void }) {
-  const moreApps: AppId[] = ['wallet', 'portfolio', 'x', 'times', 'unlocks', 'files', 'memory', 'media', 'dialer', 'mail', 'game', 'recycle', 'ferrari']
+  const moreApps: AppId[] = ['wallet', 'portfolio', 'x', 'times', 'unlocks', 'files', 'memory', 'media', 'dialer', 'mail', 'game', 'recycle', 'ferrari', 'fax', 'about', 'howitworks']
   return (
     <aside className="more-drawer">
       <div className="more-drawer-header"><div><span className="eyebrow">TSUN 98 // OS</span><h2>More applications</h2></div><button type="button" onClick={onClose}><X size={17} /></button></div>
