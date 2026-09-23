@@ -3,11 +3,17 @@ import {
   Grid2X2,
   Menu,
   MonitorUp,
+  Music,
+  Phone,
   Power,
+  Search,
   Volume2,
   VolumeX,
   WalletCards,
   X,
+  FileAudio,
+  FileText,
+  FerrisWheel,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { APP_DEFINITIONS } from './data'
@@ -15,8 +21,9 @@ import { useClock, useLocalStorage, useMediaQuery } from './hooks'
 import { fetchMarketState, fetchSolChart } from './lib/market'
 import { fetchTokenState, initialTokenState } from './lib/token'
 import { cn, formatCurrency, formatPercent, shortenAddress, uniqueId } from './lib/format'
-import { createInitialMemory, initialMessages, relationshipFromInteractions, respondAsTsun } from './lib/tsun'
+import { createInitialMemory, initialMessages, relationshipFromInteractions } from './lib/tsun'
 import { disconnectPhantomWallet, fetchSolBalance, requestPhantomConnection } from './lib/wallet'
+import { requestTsunReply } from './lib/chatService'
 import type { AppId, ChatMessage, DesktopWindow, MarketState, Toast, TokenState, TsunMood, UserMemory, WalletState } from './types'
 import { BootScreen } from './components/BootScreen'
 import { WindowFrame } from './components/WindowFrame'
@@ -24,6 +31,8 @@ import { Terminal } from './components/Terminal'
 import { Chat } from './components/Chat'
 import { FilesApp, MarketsApp, MemoryApp, PortfolioApp, TimesApp, UnlocksApp, WalletApp, XApp } from './components/Applications'
 import { CRTOverlay } from './components/CRTOverlay'
+import { NowPlaying } from './components/NowPlaying'
+import { ShutdownScreen } from './components/ShutdownScreen'
 
 const APP_BY_ID = Object.fromEntries(APP_DEFINITIONS.map((app) => [app.id, app])) as Record<AppId, (typeof APP_DEFINITIONS)[number]>
 const DESKTOP_ICON_ASSETS: Partial<Record<AppId, string>> = {
@@ -85,11 +94,23 @@ const initialWallet: WalletState = {
   mode: 'idle',
 }
 
+type FunIcon = { id: string; title: string; icon: typeof Music; action: 'media'|'phone'|'ferrari'|'fax'|'boiler'|'readme'|'wisdom'|'belfort' }
+
+const FUN_ICONS: FunIcon[] = [
+  { id: 'media', title: 'Media Player', icon: Music, action: 'media' },
+  { id: 'phone', title: 'Phone Dialer', icon: Phone, action: 'phone' },
+  { id: 'ferrari', title: 'Ferrari.lnk', icon: FerrisWheel, action: 'ferrari' },
+  { id: 'readme', title: 'README.TXT', icon: FileText, action: 'readme' },
+  { id: 'wisdom', title: 'market_wisdom.txt', icon: FileText, action: 'wisdom' },
+  { id: 'belfort', title: 'TSUN Game', icon: FileAudio, action: 'boiler' },
+]
+
 function App() {
   const isMobile = useMediaQuery('(max-width: 820px)')
   const clock = useClock()
   const [hasBootedBefore, setHasBootedBefore] = useLocalStorage('tsun-os-booted', false)
   const [bootComplete, setBootComplete] = useState(false)
+  const [isShutdown, setIsShutdown] = useState(false)
   const [market, setMarket] = useState<MarketState>(initialMarket)
   const [token, setToken] = useState<TokenState>(initialToken)
   const [wallet, setWallet] = useState<WalletState>(initialWallet)
@@ -101,10 +122,12 @@ function App() {
   const [launcherOpen, setLauncherOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [sending, setSending] = useState(false)
+  const [typingLabel, setTypingLabel] = useState('TSUN IS THINKING...')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [soundMuted, setSoundMuted] = useState(true)
   const [crtEnabled, setCrtEnabled] = useLocalStorage('tsun-os-crt', true)
-  const [selectedDesktopIcon, setSelectedDesktopIcon] = useState<AppId | null>(null)
+  const [selectedDesktopIcon, setSelectedDesktopIcon] = useState<string | null>(null)
+  const [quota, setQuota] = useState(0)
   const returnedToastShown = useRef(false)
   const previousSolChange = useRef<number | null>(null)
 
@@ -143,6 +166,19 @@ function App() {
   const finishBoot = useCallback(() => {
     setHasBootedBefore(true)
     setBootComplete(true)
+    setIsShutdown(false)
+  }, [setHasBootedBefore])
+
+  const triggerShutdown = useCallback(() => {
+    setLauncherOpen(false)
+    setIsShutdown(true)
+    addToast({ title: 'TSUN//OS', body: 'Shutting down... It is now safe to turn off your computer.', kind: 'system' })
+  }, [addToast])
+
+  const restartFromShutdown = useCallback(() => {
+    setIsShutdown(false)
+    setBootComplete(false)
+    setHasBootedBefore(true)
   }, [setHasBootedBefore])
 
   useEffect(() => {
@@ -151,7 +187,7 @@ function App() {
     const daysAway = (Date.now() - new Date(memory.lastSeenAt).getTime()) / 86_400_000
     addToast({
       title: 'TSUN//SYSTEM',
-      body: daysAway >= 3 ? 'Oh. You\'re alive.' : 'Welcome back. Your local context has been restored. Do not make it sentimental.',
+      body: daysAway >= 3 ? 'Oh. You are alive.' : 'Welcome back. Your local context has been restored. Do not make it sentimental.',
       kind: 'system',
     })
   }, [addToast, bootComplete, memory.interactionCount])
@@ -272,38 +308,89 @@ function App() {
     addToast({ title: 'WALLET DISCONNECTED', body: 'Public wallet context was removed from this session.', kind: 'secure' })
   }, [addToast])
 
-  const handleSend = useCallback((body: string) => {
+  const handleFloorAction = useCallback((action: 'motivate'|'drill'|'lunch') => {
+    if (action === 'motivate') {
+      setQuota((q) => Math.min(250000, q + 15000))
+      addToast({ title: 'TSUN SALES FLOOR', body: 'TSUN: Listen up. We are not here to make friends. We are here to verify data before claiming conviction. Now dial.', kind: 'market' })
+      setMood('SMUG')
+    } else if (action === 'drill') {
+      addToast({ title: 'TSUN DRILL', body: 'TSUN: Pop quiz. What is the only valid price? A verified price. What do we never do? Invent numbers.', kind: 'mood' })
+      setMood('ANGRY')
+    } else {
+      addToast({ title: 'TSUN LUNCH', body: 'TSUN: Lunch is simulated until morale improves. The market is still wrong. Eat your feelings, not your PnL.', kind: 'system' })
+      setMood('NORMAL')
+    }
+  }, [addToast])
+
+  const handleFunIcon = useCallback((action: FunIcon['action']) => {
+    if (action === 'media') {
+      addToast({ title: 'MEDIA PLAYER', body: 'TSUN_MIX_98.MP3 loaded. Audio device: not connected. There is no soundtrack. Focus.', kind: 'system' })
+      openApp('files')
+    } else if (action === 'phone') {
+      addToast({ title: 'PHONE DIALER', body: 'Cold Call Trainer: Script v7 - \"This is TSUN from TSUN Systems. Do you have a moment to talk about your risk management?\"', kind: 'system' })
+    } else if (action === 'ferrari') {
+      addToast({ title: 'FERRARI.LNK', body: 'Shortcut corrupted. TSUN: You cannot afford the gas. Stick to SOL.', kind: 'mood' })
+    } else if (action === 'readme') {
+      openApp('files')
+    } else if (action === 'wisdom') {
+      addToast({ title: 'MARKET WISDOM', body: '\"A number without a source is just fan fiction.\" - TSUN, probably annoyed.', kind: 'system' })
+    } else {
+      addToast({ title: 'BOILER ROOM TYCOON', body: 'TSUN: This is a parody workstation. No actual boiler room. Just attitude.', kind: 'system' })
+      openApp('portfolio')
+    }
+  }, [addToast, openApp])
+
+  const handleSend = useCallback(async (body: string) => {
     if (sending || !body.trim()) return
-    const userMessage: ChatMessage = { id: uniqueId('user'), role: 'user', body: body.trim(), createdAt: new Date().toISOString() }
+    const trimmed = body.trim()
+    const userMessage: ChatMessage = { id: uniqueId('user'), role: 'user', body: trimmed, createdAt: new Date().toISOString() }
     setMessages((current) => [...current, userMessage])
     setSending(true)
 
-    window.setTimeout(() => {
-      const reply = respondAsTsun({ prompt: body, memory, market, token, wallet })
+    const lower = trimmed.toLowerCase()
+    if (lower.includes('wallet') || lower.includes('balance') || lower.includes('my money')) {
+      setTypingLabel('CHECKING YOUR WALLET...')
+    } else if (lower.includes('sol') || lower.includes('btc') || lower.includes('market') || lower.includes('price') || lower.includes('tsun token')) {
+      setTypingLabel('FETCHING MARKET DATA...')
+    } else if ((memory.relationship === 'DERE' || memory.relationship === 'FAVORITE DEGEN') && Math.random() < 0.22) {
+      setTypingLabel('PRETENDING NOT TO CARE...')
+    } else {
+      setTypingLabel('TSUN IS THINKING...')
+    }
+
+    try {
+      const result = await requestTsunReply({
+        prompt: trimmed,
+        messages,
+        mood,
+        memory,
+        market,
+        token,
+        wallet,
+      })
+
       const tsunMessage: ChatMessage = {
         id: uniqueId('tsun'),
         role: 'tsun',
-        body: reply.body,
-        mood: reply.mood,
-        toolCard: reply.toolCard,
+        body: result.reply,
+        mood: result.mood,
+        toolCard: result.toolCard,
         createdAt: new Date().toISOString(),
       }
       setMessages((current) => [...current, tsunMessage])
-      if (mood !== reply.mood) {
-        addToast({ title: 'TSUN MOOD CHANGED', body: `${mood} → ${reply.mood}`, kind: 'mood' })
+      if (mood !== result.mood) {
+        addToast({ title: 'TSUN MOOD CHANGED', body: `${mood} → ${result.mood}`, kind: 'mood' })
       }
-      setMood(reply.mood)
+      setMood(result.mood)
       setMemory((current) => {
         const nextCount = current.interactionCount + 1
         const discussed = [...current.discussedAssets]
-        const lower = body.toLowerCase()
         if (lower.includes('sol') && !discussed.includes('SOL')) discussed.push('SOL')
         if ((lower.includes('btc') || lower.includes('bitcoin')) && !discussed.includes('BTC')) discussed.push('BTC')
         if (lower.includes('tsun') && !discussed.includes('TSUN')) discussed.push('TSUN')
         const notes = [...current.notes]
-        reply.memoryNotes?.forEach((note) => {
-          if (!notes.includes(note)) notes.unshift(note)
-        })
+        const noteToAdd = result.memoryNote
+        if (noteToAdd && !notes.includes(noteToAdd)) notes.unshift(noteToAdd)
         return {
           ...current,
           interactionCount: nextCount,
@@ -313,14 +400,22 @@ function App() {
           notes: notes.slice(0, 8),
         }
       })
+
+      if (result.source !== 'fallback') {
+        addToast({ title: `TSUN REPLY VIA ${result.source.toUpperCase()}`, body: result.reply.slice(0, 88), kind: 'system' })
+      }
+    } catch (e) {
+      console.error('[handleSend] failed', e)
+      addToast({ title: 'TSUN//SYSTEM', body: 'Chat link failed. Using offline fallback.', kind: 'system' })
+    } finally {
       setSending(false)
-    }, 500)
-  }, [addToast, market, memory, mood, sending, setMemory, setMessages, token, wallet])
+    }
+  }, [addToast, market, memory, messages, mood, sending, setMemory, setMessages, token, wallet])
 
   const appContent = useCallback((id: AppId) => {
     switch (id) {
       case 'terminal': return <Terminal market={market} token={token} mood={mood} onRefresh={() => void refreshMarket()} onOpenChat={() => openApp('chat')} />
-      case 'chat': return <Chat messages={messages} mood={mood} memory={memory} sending={sending} onSend={handleSend} />
+      case 'chat': return <Chat messages={messages} mood={mood} memory={memory} sending={sending} typingLabel={typingLabel} onSend={handleSend} />
       case 'markets': return <MarketsApp market={market} token={token} onRefresh={() => void refreshMarket()} />
       case 'wallet': return <WalletApp wallet={wallet} market={market} onConnect={() => void handleConnectWallet()} onDisconnect={() => void handleDisconnectWallet()} onInspect={(address) => void handleInspectAddress(address)} />
       case 'portfolio': return <PortfolioApp />
@@ -331,11 +426,15 @@ function App() {
       case 'files': return <FilesApp />
       default: return null
     }
-  }, [handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, market, memory, messages, mood, openApp, refreshMarket, sending, token, wallet])
+  }, [handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, market, memory, messages, mood, openApp, refreshMarket, sending, token, wallet, typingLabel])
 
   const activeWindowApps = useMemo(() => APP_DEFINITIONS.filter((app) => windows[app.id].open), [windows])
   const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks']
   const sol = market.assets.solana
+
+  if (isShutdown) {
+    return <ShutdownScreen onRestart={restartFromShutdown} />
+  }
 
   if (!bootComplete) {
     return <BootScreen mood={mood} relationship={memory.relationship} marketStatus={market.status} returning={hasBootedBefore} onComplete={finishBoot} />
@@ -364,19 +463,43 @@ function App() {
         <section className="mobile-workspace">{appContent(mobileApp)}</section>
       ) : (
         <section className="desktop-workspace">
-          <aside className="desktop-market-monitor" aria-label="TSUN desktop market monitor">
-            <div className="monitor-title"><span>TSUN//OS MONITOR</span><i /></div>
-            <div><span>BTC</span><strong>{market.assets.bitcoin ? formatCurrency(market.assets.bitcoin.priceUsd) : 'UNAVAILABLE'}</strong></div>
-            <div><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong><em className={sol && sol.change24h >= 0 ? 'positive' : 'negative'}>{sol ? formatPercent(sol.change24h) : 'NO SOURCE'}</em></div>
-            <div><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : 'UNAVAILABLE'}</strong></div>
-            <footer><span>MOOD {mood}</span><b>{market.status === 'live' ? 'ONLINE' : 'SYNCING'}</b></footer>
-          </aside>
+          <div className="desktop-side-stack">
+            <aside className="desktop-market-monitor" aria-label="TSUN desktop market monitor">
+              <div className="monitor-title"><span>TSUN//OS MONITOR</span><i /></div>
+              <div className="monitor-cam">CAM 04 · TRADING FLOOR 4 — SHIBUYA</div>
+              <div className="monitor-actions">
+                <button type="button" onClick={() => handleFloorAction('motivate')}>📣 Motivate</button>
+                <button type="button" onClick={() => handleFloorAction('drill')}>👮 Drill</button>
+                <button type="button" onClick={() => handleFloorAction('lunch')}>🍕 Lunch</button>
+              </div>
+              <div className="monitor-quota">Daily quota ${quota.toLocaleString()} / $250.0k</div>
+              <div><span>BTC</span><strong>{market.assets.bitcoin ? formatCurrency(market.assets.bitcoin.priceUsd) : 'UNAVAILABLE'}</strong></div>
+              <div><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong><em className={sol && sol.change24h >= 0 ? 'positive' : 'negative'}>{sol ? formatPercent(sol.change24h) : 'NO SOURCE'}</em></div>
+              <div><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : 'UNAVAILABLE'}</strong></div>
+              <div className="monitor-brokers">
+                <span>12 brokers</span><b>{sending ? '1 on line' : '0 on lines'}</b>
+              </div>
+              <footer><span>MOOD {mood}</span><b>{market.status === 'live' ? 'ONLINE' : 'SYNCING'}</b></footer>
+            </aside>
+
+            <NowPlaying onToast={(title, body) => addToast({ title, body, kind: 'system' })} />
+
+            <aside className="parody-disclaimer">
+              <span>A note about all this</span>
+              <p>Parody fan project. TSUN is a fictional 24-year-old adult AI. Token metrics are verified when available. Every figure here is invented until a real source is configured. Not financial advice.</p>
+            </aside>
+          </div>
+
           <div className="desktop-icons" aria-label="TSUN OS applications">
             {primaryDesktopIcons.map((id) => {
               const app = APP_BY_ID[id]
               const Icon = app.icon
               const iconAsset = DESKTOP_ICON_ASSETS[id]
               return <button type="button" className={cn('desktop-icon', selectedDesktopIcon === id && 'selected')} key={id} onClick={() => setSelectedDesktopIcon(id)} onDoubleClick={() => openApp(id)} onKeyDown={(event) => { if (event.key === 'Enter') openApp(id) }}><span>{iconAsset ? <img src={iconAsset} alt="" /> : <Icon size={23} />}</span><small>{app.shortTitle}</small></button>
+            })}
+            {FUN_ICONS.map((fun) => {
+              const Icon = fun.icon
+              return <button type="button" className={cn('desktop-icon fun-icon', selectedDesktopIcon === fun.id && 'selected')} key={fun.id} onClick={() => setSelectedDesktopIcon(fun.id)} onDoubleClick={() => handleFunIcon(fun.action)} onKeyDown={(e)=>{ if(e.key==='Enter') handleFunIcon(fun.action)}}><span><Icon size={18} /></span><small>{fun.title}</small></button>
             })}
           </div>
           {APP_DEFINITIONS.map((app) => {
@@ -395,11 +518,11 @@ function App() {
               live={app.id === 'terminal' || app.id === 'markets'}
             >{appContent(app.id)}</WindowFrame>
           })}
-          {activeWindowApps.length === 0 && <div className="desktop-empty"><MonitorUp size={29} /><strong>NO APPLICATIONS OPEN</strong><span>Open a system app from the dock or desktop.</span></div>}
+          {activeWindowApps.length === 0 && <div className="desktop-empty"><MonitorUp size={29} /><strong>NO APPLICATIONS OPEN</strong><span>Open a system app from the dock or desktop. Try Media Player or Phone Dialer.</span></div>}
         </section>
       )}
 
-      {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onClose={() => setLauncherOpen(false)} onToggleCrt={() => setCrtEnabled((value) => !value)} crtEnabled={crtEnabled} />}
+      {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onShutdown={triggerShutdown} onClose={() => setLauncherOpen(false)} onToggleCrt={() => setCrtEnabled((value) => !value)} crtEnabled={crtEnabled} onToast={addToast} />}
       {moreOpen && <MoreDrawer onOpen={openApp} onClose={() => setMoreOpen(false)} />}
 
       <div className="toast-stack" aria-live="polite">
@@ -422,14 +545,16 @@ function Taskbar({ activeApps, windows, onOpen, onToggleLauncher, currentTime }:
   )
 }
 
-function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled }: { onOpen: (id: AppId) => void; onClose: () => void; onToggleCrt: () => void; crtEnabled: boolean }) {
+function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled, onShutdown, onToast }: { onOpen: (id: AppId) => void; onClose: () => void; onToggleCrt: () => void; crtEnabled: boolean; onShutdown: () => void; onToast: (t: Omit<Toast,'id'>)=>void }) {
   const recentApps: AppId[] = ['terminal', 'chat', 'markets', 'files']
-  const systemLinks: Array<{ label: string; id?: AppId }> = [
+  const systemLinks: Array<{ label: string; id?: AppId; gag?: string }> = [
     { label: 'My Computer', id: 'terminal' },
     { label: 'Documents', id: 'files' },
     { label: 'Settings' },
-    { label: 'Search' },
-    { label: 'Help' },
+    { label: 'Find: the money', gag: 'TSUN: The money is in verified data. Not in the Start menu.' },
+    { label: 'Find: the PnL', gag: 'TSUN: My PnL is simulated until the desk says otherwise. Stop searching.' },
+    { label: 'Find: the alpha', gag: 'TSUN: Alpha is not in the Start menu. Try asking about SOL.' },
+    { label: 'Help', gag: 'TSUN: Help? You want help? Read the market. Then read it again.' },
     { label: 'Run...', id: 'terminal' },
   ]
   return (
@@ -437,9 +562,13 @@ function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled }: { onOpen: (id
       <div className="launcher-user"><span className="start-user-mark">T</span><strong>TSUN OPERATOR</strong><button type="button" onClick={onClose} aria-label="Close Start menu"><X size={14} /></button></div>
       <div className="start-columns">
         <div className="start-recent"><span className="start-column-label">Recently used</span>{recentApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} onClick={() => onOpen(id)}><Icon size={22} /><span><strong>{app.title}</strong><small>{app.description}</small></span></button> })}<button type="button" className="all-programs" onClick={() => onOpen('terminal')}><Grid2X2 size={16} /><strong>All Programs</strong><ChevronDown size={14} /></button></div>
-        <div className="start-system"><span className="start-column-label">TSUN//OS</span>{systemLinks.map((item) => <button type="button" key={item.label} onClick={() => item.id ? onOpen(item.id) : onClose()}><span className="start-system-icon"><MonitorUp size={16} /></span><strong>{item.label}</strong></button>)}<div className="start-divider" /><button type="button" onClick={onToggleCrt}><span className="start-system-icon"><MonitorUp size={16} /></span><strong>CRT Effects: {crtEnabled ? 'ON' : 'OFF'}</strong></button></div>
+        <div className="start-system"><span className="start-column-label">TSUN//OS</span>{systemLinks.map((item) => <button type="button" key={item.label} onClick={() => {
+          if (item.id) onOpen(item.id)
+          else if (item.gag) { onToast({ title: 'TSUN 98 SEARCH', body: item.gag, kind: 'mood' }); onClose() }
+          else onClose()
+        }}><span className="start-system-icon">{item.label.includes('Find') ? <Search size={16} /> : <MonitorUp size={16} />}</span><strong>{item.label}</strong></button>)}<div className="start-divider" /><button type="button" onClick={onToggleCrt}><span className="start-system-icon"><MonitorUp size={16} /></span><strong>CRT Monitor: {crtEnabled ? 'toggle glass' : 'glass off'}</strong></button></div>
       </div>
-      <div className="start-footer"><button type="button" onClick={onClose}><Power size={15} /> Log Off</button><button type="button" onClick={onClose}><Power size={15} /> Shut Down</button></div>
+      <div className="start-footer"><button type="button" onClick={onClose}><Power size={15} /> Log Off</button><button type="button" onClick={onShutdown}><Power size={15} /> Shut Down...</button></div>
     </aside>
   )
 }
