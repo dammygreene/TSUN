@@ -4,6 +4,7 @@ import { cn } from '../lib/format'
 interface AvatarProps {
   mood: TsunMood
   compact?: boolean
+  imagePath?: string
 }
 
 const moodLabel: Record<TsunMood, string> = {
@@ -19,12 +20,13 @@ const moodLabel: Record<TsunMood, string> = {
   DERE: 'KEEPING THE LIGHT ON',
 }
 
-export function Avatar({ mood, compact = false }: AvatarProps) {
+export function Avatar({ mood, compact = false, imagePath = '/tsun_portrait.jpe' }: AvatarProps) {
   const eyeMood = mood === 'ANGRY' || mood === 'FURIOUS' ? 'angry' : mood === 'SMUG' ? 'smug' : mood === 'EMBARRASSED' || mood === 'FLUSTERED' ? 'soft' : 'normal'
 
   return (
     <div className={cn('avatar-shell', `avatar-${mood.toLowerCase()}`, compact && 'avatar-compact')} aria-label={`TSUN visual state: ${mood}`}>
       <div className="avatar-orbit orbit-one" />
+          <img className="avatar-image" src={imagePath} alt={`TSUN avatar for mood: ${mood}`} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/tsun_portrait.jpe' }} />
       <div className="avatar-orbit orbit-two" />
       <svg className="avatar-art" viewBox="0 0 280 340" role="img" aria-hidden="true">
         <defs>

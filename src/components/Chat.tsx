@@ -63,7 +63,7 @@ export function Chat({ messages, mood, memory, sending, onSend }: ChatProps) {
   return (
     <div className="chat-view">
       <aside className="chat-identity-panel">
-        <Avatar mood={mood} />
+        <Avatar mood={mood} imagePath="/tsun_chatIMG.jpeg" />
         <div className="identity-stat-grid">
           <div><span>MOOD</span><strong>{mood}</strong></div>
           <div><span>RELATIONSHIP</span><strong>{memory.relationship}</strong></div>

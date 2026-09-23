@@ -23,11 +23,24 @@ import { WindowFrame } from './components/WindowFrame'
 import { Terminal } from './components/Terminal'
 import { Chat } from './components/Chat'
 import { FilesApp, MarketsApp, MemoryApp, PortfolioApp, TimesApp, UnlocksApp, WalletApp, XApp } from './components/Applications'
+import { CRTOverlay } from './components/CRTOverlay'
 
 const APP_BY_ID = Object.fromEntries(APP_DEFINITIONS.map((app) => [app.id, app])) as Record<AppId, (typeof APP_DEFINITIONS)[number]>
+const DESKTOP_ICON_ASSETS: Partial<Record<AppId, string>> = {
+  terminal: '/98-icons/msdos-32x32.png',
+  chat: '/98-icons/notepad-32x32.png',
+  markets: '/98-icons/paint-32x32.png',
+  wallet: '/98-icons/my-computer-32x32.png',
+  portfolio: '/98-icons/my-documents-folder-32x32.png',
+  x: '/98-icons/internet-explorer-32x32.png',
+  times: '/98-icons/notepad-file-32x32.png',
+  memory: '/98-icons/folder-32x32.png',
+  files: '/98-icons/folder-32x32.png',
+  unlocks: '/98-icons/minesweeper-32x32.png',
+}
 
 const DEFAULT_WINDOW_LAYOUT: Record<AppId, Omit<DesktopWindow, 'open' | 'minimized' | 'zIndex'>> = {
-  terminal: { id: 'terminal', x: 220, y: 74, width: 940, height: 690, maximized: false },
+  terminal: { id: 'terminal', x: 300, y: 72, width: 780, height: 500, maximized: false },
   chat: { id: 'chat', x: 268, y: 90, width: 890, height: 640, maximized: false },
   markets: { id: 'markets', x: 245, y: 90, width: 855, height: 625, maximized: false },
   wallet: { id: 'wallet', x: 300, y: 102, width: 790, height: 580, maximized: false },
@@ -90,7 +103,10 @@ function App() {
   const [sending, setSending] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [soundMuted, setSoundMuted] = useState(true)
+  const [crtEnabled, setCrtEnabled] = useLocalStorage('tsun-os-crt', true)
+  const [selectedDesktopIcon, setSelectedDesktopIcon] = useState<AppId | null>(null)
   const returnedToastShown = useRef(false)
+  const previousSolChange = useRef<number | null>(null)
 
   const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = uniqueId('toast')
@@ -109,7 +125,14 @@ function App() {
       chartFetchedAt: chartResult.chartFetchedAt,
     }))
     setToken(tokenResult)
-  }, [])
+    const nextSolChange = marketResult.assets.solana?.change24h ?? null
+    if (nextSolChange !== null && previousSolChange.current !== null && Math.abs(nextSolChange - previousSolChange.current) >= 3) {
+      const direction = nextSolChange > previousSolChange.current ? 'up' : 'down'
+      addToast({ title: 'TSUN MARKET ALERT', body: `SOL moved sharply ${direction}. Mood protocol: ${nextSolChange > 0 ? 'SMUG' : 'PANICKING'}.`, kind: 'market' })
+      setMood(nextSolChange > 0 ? 'SMUG' : 'PANICKING')
+    }
+    previousSolChange.current = nextSolChange
+  }, [addToast])
 
   useEffect(() => {
     void refreshMarket()
@@ -125,14 +148,25 @@ function App() {
   useEffect(() => {
     if (!bootComplete || memory.interactionCount === 0 || returnedToastShown.current) return
     returnedToastShown.current = true
+    const daysAway = (Date.now() - new Date(memory.lastSeenAt).getTime()) / 86_400_000
     addToast({
       title: 'TSUN//SYSTEM',
-      body: 'Welcome back. Your local context has been restored. Do not make it sentimental.',
+      body: daysAway >= 3 ? 'Oh. You\'re alive.' : 'Welcome back. Your local context has been restored. Do not make it sentimental.',
       kind: 'system',
     })
   }, [addToast, bootComplete, memory.interactionCount])
 
   const openApp = useCallback((id: AppId) => {
+    const reactions: Partial<Record<AppId, { body: string; mood: TsunMood }>> = {
+      portfolio: { body: 'Stop staring at my PnL.', mood: 'EMBARRASSED' },
+      memory: { body: 'You really went digging through my memory?', mood: 'FLUSTERED' },
+      files: { body: 'Do not open anything marked DO NOT OPEN.', mood: 'ANNOYED' },
+    }
+    const reaction = reactions[id]
+    if (reaction) {
+      addToast({ title: 'TSUN NOTIFICATION', body: reaction.body, kind: 'mood' })
+      setMood(reaction.mood)
+    }
     if (isMobile) {
       setMobileApp(id)
       setMoreOpen(false)
@@ -144,7 +178,7 @@ function App() {
       return { ...current, [id]: { ...current[id], open: true, minimized: false, zIndex } }
     })
     setLauncherOpen(false)
-  }, [isMobile])
+  }, [addToast, isMobile])
 
   const focusWindow = useCallback((id: AppId) => {
     setWindows((current) => {
@@ -168,6 +202,35 @@ function App() {
   const moveWindow = useCallback((id: AppId, x: number, y: number) => {
     setWindows((current) => ({ ...current, [id]: { ...current[id], x, y } }))
   }, [])
+
+  const resizeWindow = useCallback((id: AppId, width: number, height: number) => {
+    setWindows((current) => ({ ...current, [id]: { ...current[id], width, height } }))
+  }, [])
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLauncherOpen(false)
+        setMoreOpen(false)
+      }
+      if (event.key === 'Meta' || event.key === 'OS') {
+        event.preventDefault()
+        setLauncherOpen(true)
+      }
+      if (event.altKey && event.key === 'Tab') {
+        event.preventDefault()
+        const openApps = APP_DEFINITIONS.filter((app) => windows[app.id].open)
+        const current = openApps.sort((left, right) => windows[right.id].zIndex - windows[left.id].zIndex)
+        if (current.length > 1) openApp(current[1].id)
+      }
+      if (event.ctrlKey && event.key.toLowerCase() === 'w') {
+        const focused = APP_DEFINITIONS.reduce<AppId | null>((top, app) => windows[app.id].open && (!top || windows[app.id].zIndex > windows[top].zIndex) ? app.id : top, null)
+        if (focused) closeWindow(focused)
+      }
+    }
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [closeWindow, openApp, windows])
 
   const handleConnectWallet = useCallback(async () => {
     try {
@@ -271,7 +334,7 @@ function App() {
   }, [handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, market, memory, messages, mood, openApp, refreshMarket, sending, token, wallet])
 
   const activeWindowApps = useMemo(() => APP_DEFINITIONS.filter((app) => windows[app.id].open), [windows])
-  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'wallet', 'portfolio', 'times', 'files', 'unlocks', 'x']
+  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks']
   const sol = market.assets.solana
 
   if (!bootComplete) {
@@ -281,6 +344,7 @@ function App() {
   return (
     <main className={cn('tsun-os', `mood-${mood.toLowerCase()}`)}>
       <div className="desktop-texture" />
+      <CRTOverlay enabled={crtEnabled} />
       <header className="global-bar">
         <button type="button" className="brand-lockup" onClick={() => openApp('terminal')} aria-label="Open TSUN terminal"><span className="brand-caret">&gt;_</span><span>TSUN//OS</span></button>
         <div className="global-ticker">
@@ -300,11 +364,19 @@ function App() {
         <section className="mobile-workspace">{appContent(mobileApp)}</section>
       ) : (
         <section className="desktop-workspace">
+          <aside className="desktop-market-monitor" aria-label="TSUN desktop market monitor">
+            <div className="monitor-title"><span>TSUN//OS MONITOR</span><i /></div>
+            <div><span>BTC</span><strong>{market.assets.bitcoin ? formatCurrency(market.assets.bitcoin.priceUsd) : 'UNAVAILABLE'}</strong></div>
+            <div><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong><em className={sol && sol.change24h >= 0 ? 'positive' : 'negative'}>{sol ? formatPercent(sol.change24h) : 'NO SOURCE'}</em></div>
+            <div><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : 'UNAVAILABLE'}</strong></div>
+            <footer><span>MOOD {mood}</span><b>{market.status === 'live' ? 'ONLINE' : 'SYNCING'}</b></footer>
+          </aside>
           <div className="desktop-icons" aria-label="TSUN OS applications">
             {primaryDesktopIcons.map((id) => {
               const app = APP_BY_ID[id]
               const Icon = app.icon
-              return <button type="button" className="desktop-icon" key={id} onClick={() => openApp(id)}><span><Icon size={23} /></span><small>{app.shortTitle}</small></button>
+              const iconAsset = DESKTOP_ICON_ASSETS[id]
+              return <button type="button" className={cn('desktop-icon', selectedDesktopIcon === id && 'selected')} key={id} onClick={() => setSelectedDesktopIcon(id)} onDoubleClick={() => openApp(id)} onKeyDown={(event) => { if (event.key === 'Enter') openApp(id) }}><span>{iconAsset ? <img src={iconAsset} alt="" /> : <Icon size={23} />}</span><small>{app.shortTitle}</small></button>
             })}
           </div>
           {APP_DEFINITIONS.map((app) => {
@@ -319,6 +391,7 @@ function App() {
               onMinimize={() => minimizeWindow(app.id)}
               onMaximize={() => maximizeWindow(app.id)}
               onMove={(x, y) => moveWindow(app.id, x, y)}
+              onResize={(width, height) => resizeWindow(app.id, width, height)}
               live={app.id === 'terminal' || app.id === 'markets'}
             >{appContent(app.id)}</WindowFrame>
           })}
@@ -326,7 +399,7 @@ function App() {
         </section>
       )}
 
-      {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onClose={() => setLauncherOpen(false)} />}
+      {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onClose={() => setLauncherOpen(false)} onToggleCrt={() => setCrtEnabled((value) => !value)} crtEnabled={crtEnabled} />}
       {moreOpen && <MoreDrawer onOpen={openApp} onClose={() => setMoreOpen(false)} />}
 
       <div className="toast-stack" aria-live="polite">
@@ -342,18 +415,31 @@ function Taskbar({ activeApps, windows, onOpen, onToggleLauncher, currentTime }:
   const time = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).format(currentTime)
   return (
     <footer className="taskbar">
-      <button type="button" className="taskbar-start" onClick={onToggleLauncher}><Grid2X2 size={16} /><span>APPS</span></button>
+      <button type="button" className="taskbar-start" onClick={onToggleLauncher}><img src="/98-icons/start.png" alt="" /><span>Start</span></button>
       <div className="taskbar-apps">{activeApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} className={cn('taskbar-app', windows[id].minimized && 'minimized')} onClick={() => onOpen(id)}><Icon size={14} /><span>{app.shortTitle}</span></button> })}</div>
       <div className="taskbar-status"><span className="taskbar-status-label">LOCAL SESSION</span><span>{time} UTC</span><button type="button" className="power-button" title="Session is browser local only"><Power size={14} /></button></div>
     </footer>
   )
 }
 
-function AppLauncher({ onOpen, onClose }: { onOpen: (id: AppId) => void; onClose: () => void }) {
+function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled }: { onOpen: (id: AppId) => void; onClose: () => void; onToggleCrt: () => void; crtEnabled: boolean }) {
+  const recentApps: AppId[] = ['terminal', 'chat', 'markets', 'files']
+  const systemLinks: Array<{ label: string; id?: AppId }> = [
+    { label: 'My Computer', id: 'terminal' },
+    { label: 'Documents', id: 'files' },
+    { label: 'Settings' },
+    { label: 'Search' },
+    { label: 'Help' },
+    { label: 'Run...', id: 'terminal' },
+  ]
   return (
-    <aside className="app-launcher">
-      <div className="launcher-header"><div><span className="eyebrow">TSUN//OS</span><h2>Applications</h2></div><button type="button" onClick={onClose}><X size={16} /></button></div>
-      <div className="launcher-grid">{APP_DEFINITIONS.map((app) => { const Icon = app.icon; return <button type="button" key={app.id} onClick={() => onOpen(app.id)}><Icon size={20} /><strong>{app.shortTitle}</strong><span>{app.description}</span></button> })}</div>
+    <aside className="app-launcher xp-start-menu">
+      <div className="launcher-user"><span className="start-user-mark">T</span><strong>TSUN OPERATOR</strong><button type="button" onClick={onClose} aria-label="Close Start menu"><X size={14} /></button></div>
+      <div className="start-columns">
+        <div className="start-recent"><span className="start-column-label">Recently used</span>{recentApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} onClick={() => onOpen(id)}><Icon size={22} /><span><strong>{app.title}</strong><small>{app.description}</small></span></button> })}<button type="button" className="all-programs" onClick={() => onOpen('terminal')}><Grid2X2 size={16} /><strong>All Programs</strong><ChevronDown size={14} /></button></div>
+        <div className="start-system"><span className="start-column-label">TSUN//OS</span>{systemLinks.map((item) => <button type="button" key={item.label} onClick={() => item.id ? onOpen(item.id) : onClose()}><span className="start-system-icon"><MonitorUp size={16} /></span><strong>{item.label}</strong></button>)}<div className="start-divider" /><button type="button" onClick={onToggleCrt}><span className="start-system-icon"><MonitorUp size={16} /></span><strong>CRT Effects: {crtEnabled ? 'ON' : 'OFF'}</strong></button></div>
+      </div>
+      <div className="start-footer"><button type="button" onClick={onClose}><Power size={15} /> Log Off</button><button type="button" onClick={onClose}><Power size={15} /> Shut Down</button></div>
     </aside>
   )
 }

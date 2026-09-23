@@ -35,6 +35,17 @@ export function BootScreen({ mood, relationship, marketStatus, returning, onComp
     return () => window.clearInterval(timer)
   }, [lines.length, onComplete, returning])
 
+  useEffect(() => {
+    const skip = (event: KeyboardEvent) => {
+      if (['Enter', 'Escape', ' '].includes(event.key)) {
+        event.preventDefault()
+        onComplete()
+      }
+    }
+    window.addEventListener('keydown', skip)
+    return () => window.removeEventListener('keydown', skip)
+  }, [onComplete])
+
   return (
     <main className="boot-screen" aria-label="TSUN operating system boot sequence">
       <div className="boot-noise" />

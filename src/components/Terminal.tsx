@@ -108,7 +108,7 @@ export function Terminal({ market, token, mood, onRefresh, onOpenChat }: Termina
     <div className="terminal-view app-scroll">
       <div className="terminal-token-header">
         <div className="terminal-identity">
-          <div className="token-mark">T</div>
+          <div className="token-mark"><img src="/tsun_portrait.jpe" alt="TSUN portrait" /></div>
           <div>
             <span className="eyebrow">PRIMARY PAIR</span>
             <h1>{token.pairLabel ?? 'TSUN / SOL'}</h1>
@@ -131,7 +131,7 @@ export function Terminal({ market, token, mood, onRefresh, onOpenChat }: Termina
       <div className="terminal-main-grid">
         <SolChart market={market} />
         <aside className="terminal-commentary">
-          <Avatar mood={mood} compact />
+          <Avatar mood={mood} compact imagePath="/tsun_annoyed.jpe" />
           <div className="commentary-heading"><span className="eyebrow">TSUN STATUS</span><strong>{mood}</strong></div>
           <p>"{quoteByMood[mood]}"</p>
           <button type="button" className="text-action" onClick={onOpenChat}>Open conversation <ExternalLink size={13} /></button>
