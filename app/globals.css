@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-tsun-void: #050505;
+  --color-tsun-ink: #090909;
+  --color-tsun-graphite: #111111;
+  --color-tsun-panel: #151515;
+  --color-tsun-panel2: #1b1b1b;
+  --color-tsun-border: #282828;
+  --color-tsun-borderLight: #343434;
+  --color-tsun-text: #f1f1ed;
+  --color-tsun-muted: #8a8a86;
+  --color-tsun-dim: #555552;
+  --color-tsun-accent: #e5486f;
+  --color-profit: #3fb950;
+  --color-loss: #f85149;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-tsun-void);
+  color: var(--color-tsun-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(229, 72, 111, 0.35);
+}
+
+/* Faint financial terminal grid for the desktop surface. */
+.desktop-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Quiet dark scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #343434 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #343434;
+  border-radius: 4px;
+}
+
+/* Visible focus for keyboard navigation. */
+:focus-visible {
+  outline: 2px solid var(--color-tsun-accent);
+  outline-offset: 1px;
+}
+
+/* Respect OS reduced motion for CSS animations. In-app motion is gated
+   separately by the reducedMotion store flag in motion components. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
