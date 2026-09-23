@@ -17,10 +17,10 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { INITIAL_POSITIONS, INITIAL_TRADES, LORE_FILES, MILESTONES, STORIES } from '../data'
+import { useEffect, useMemo, useState } from 'react'
+import { LORE_FILES, MILESTONES, STORIES } from '../data'
 import { cn, formatCurrency, formatDate, formatNumber, formatPercent, formatRelativeTime, formatSignedCurrency, shortenAddress } from '../lib/format'
-import type { AppId, MarketState, TokenState, UserMemory, WalletState } from '../types'
+import type { AppId, MarketState, TokenState, TsunPosition, TsunTrade, UserMemory, WalletState } from '../types'
 
 export function MarketsApp({ market, token, onRefresh }: { market: MarketState; token: TokenState; onRefresh: () => void }) {
   const assets = [market.assets.bitcoin, market.assets.solana].filter(Boolean)
@@ -111,37 +111,49 @@ export function WalletApp({ wallet, market, onConnect, onDisconnect, onInspect }
 }
 
 export function PortfolioApp() {
-  const positions = INITIAL_POSITIONS
+  // The old seeded demo ledger was removed on purpose. A simulated book that looks profitable is
+  // worse than an empty one, so the desk stays empty until a real public wallet is connected.
+  const positions: TsunPosition[] = []
+  const trades: TsunTrade[] = []
+  const hasLedger = positions.length > 0
   const currentValue = positions.reduce((sum, position) => sum + position.quantity * position.markPrice, 0)
   const costBasis = positions.reduce((sum, position) => sum + position.quantity * position.avgEntry, 0)
-  const pnl = currentValue - costBasis
-  const pnlPct = (pnl / costBasis) * 100
-  const winRate = 1 / 2
+  const pnl = hasLedger ? currentValue - costBasis : null
+  const pnlPct = hasLedger && costBasis ? (currentValue - costBasis) / costBasis * 100 : null
+  const winRate = trades.length ? trades.filter((trade) => (trade.pnl ?? 0) > 0).length / trades.length * 100 : null
 
   return (
     <div className="portfolio-app app-scroll">
       <div className="portfolio-hero">
-        <div><span className="mode-badge"><i /> SIMULATED MVP</span><h1>TSUN Public Desk</h1><p>Transparent demo positions, no real wallet and no claims of on-chain execution.</p></div>
-        <div className="portfolio-reaction"><span>TSUN REACTION</span><strong>{pnl >= 0 ? 'TEMPORARILY TOLERABLE' : 'THE MARKET IS WRONG'}</strong></div>
+        <div><span className="mode-badge"><i /> SIMULATED MVP</span><h1>TSUN Public Desk</h1><p>Transparent surface. No real wallet is connected in this build, so the ledger below stays empty rather than decorative.</p></div>
+        <div className="portfolio-reaction"><span>TSUN REACTION</span><strong>{hasLedger ? (pnl !== null && pnl >= 0 ? 'TEMPORARILY TOLERABLE' : 'THE MARKET IS WRONG') : 'WAITING FOR A REAL SOURCE'}</strong></div>
       </div>
       <div className="portfolio-stat-grid">
-        <div><span>STARTING NAV</span><strong>{formatCurrency(costBasis)}</strong><small>Seeded demo ledger</small></div>
-        <div><span>CURRENT NAV</span><strong>{formatCurrency(currentValue)}</strong><small>Simulated mark prices</small></div>
-        <div><span>TOTAL PNL</span><strong className={pnl >= 0 ? 'positive' : 'negative'}>{formatSignedCurrency(pnl)}</strong><small className={pnl >= 0 ? 'positive' : 'negative'}>{formatPercent(pnlPct)}</small></div>
-        <div><span>WIN RATE</span><strong>{formatPercent(winRate * 100, 0)}</strong><small>1 / 2 closed positions</small></div>
+        <div><span>STARTING NAV</span><strong>AWAITING DATA</strong><small>No ledger loaded</small></div>
+        <div><span>CURRENT NAV</span><strong>AWAITING DATA</strong><small>No mark prices</small></div>
+        <div><span>TOTAL PNL</span><strong className="muted">{pnl !== null ? formatSignedCurrency(pnl) : 'NOT AVAILABLE'}</strong><small>{pnlPct !== null ? formatPercent(pnlPct) : 'Nothing to compute'}</small></div>
+        <div><span>WIN RATE</span><strong className="muted">{winRate !== null ? formatPercent(winRate, 0) : 'NOT AVAILABLE'}</strong><small>{trades.length ? `${trades.length} closed trades` : 'No closed trades'}</small></div>
       </div>
-      <section className="portfolio-section"><div className="section-heading"><div><span className="eyebrow">CURRENT POSITIONS</span><h2>Open simulated exposures</h2></div><span className="sim-note">NOT COPY TRADING</span></div><div className="position-list">
-        {positions.map((position) => <div className="position-row" key={position.symbol}>
-          <div className="position-asset"><strong>{position.symbol}</strong><span>{position.asset}</span></div>
-          <div><span>ALLOCATION</span><strong>{position.allocation}%</strong></div>
-          <div><span>MARK</span><strong>{formatCurrency(position.markPrice)}</strong></div>
-          <div><span>UNREALIZED</span><strong className={position.pnl >= 0 ? 'positive' : 'negative'}>{formatSignedCurrency(position.pnl)}</strong></div>
-          <div className="allocation-bar"><i style={{ width: `${position.allocation}%` }} /></div>
-        </div>)}
-      </div></section>
-      <section className="portfolio-section trade-section"><div className="section-heading"><div><span className="eyebrow">DEMO TRADE LEDGER</span><h2>Clearly marked simulated activity</h2></div><span className="sim-note">NO TX HASHES</span></div><div className="trade-list">
-        {INITIAL_TRADES.map((trade) => <div className="trade-row" key={trade.id}><span className={cn('trade-side', trade.side.toLowerCase())}>{trade.side}</span><strong>{trade.quantity.toLocaleString()} {trade.asset}</strong><span>{formatCurrency(trade.valueUsd)}</span><span>{formatDate(trade.timestamp)}</span><em>{trade.note}</em></div>)}
-      </div></section>
+      <section className="portfolio-section">
+        <div className="section-heading"><div><span className="eyebrow">CURRENT POSITIONS</span><h2>Open exposures</h2></div><span className="sim-note">NOT COPY TRADING</span></div>
+        <div className="desk-empty">
+          <ClipboardCheck size={17} />
+          <div>
+            <strong>Cleared for compliance</strong>
+            <p>The seeded demo positions were removed. When a dedicated public TSUN wallet is connected, this table shows verified positions with their source and freshness attached. Until then it shows nothing, which is the honest version of this page.</p>
+          </div>
+        </div>
+      </section>
+      <section className="portfolio-section trade-section">
+        <div className="section-heading"><div><span className="eyebrow">DEMO TRADE LEDGER</span><h2>Simulated activity</h2></div><span className="sim-note">NO TX HASHES</span></div>
+        <div className="desk-empty">
+          <ClipboardCheck size={17} />
+          <div>
+            <strong>No simulated trades on file</strong>
+            <p>Invented trades used to live here. TSUN does not need props from a spreadsheet, so the ledger stays closed until real on chain activity exists and can be linked.</p>
+          </div>
+        </div>
+      </section>
       <div className="portfolio-disclosure"><ClipboardCheck size={16} /><span>When a dedicated public trading wallet is connected, this surface should show verified transaction links, separate realized and unrealized PnL, and clearly identify data source and freshness.</span></div>
     </div>
   )
@@ -157,14 +169,37 @@ export function XApp() {
   )
 }
 
+function TimesTicker() {
+  const [seconds, setSeconds] = useState(13)
+  useEffect(() => {
+    const timer = window.setInterval(() => setSeconds((value) => (value <= 1 ? 13 : value - 1)), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const headlines = [
+    'TSUN declines to invent a market cap, calls it "the bare minimum"',
+    'Floor monitor staffed entirely by fiction, paid entirely in fiction',
+    'Portfolio desk cleared for compliance, sentiment unchanged',
+    'Local operator remembered for the seventh time, TSUN notices nothing',
+  ]
+  const headline = headlines[Math.floor(Date.now() / 13000) % headlines.length]
+  return (
+    <div className="times-ticker">
+      <span className="times-ticker-live">LIVE DESK</span>
+      <em>{headline}</em>
+      <span className="times-ticker-next">NEXT EDITION IN {seconds}s</span>
+    </div>
+  )
+}
+
 export function TimesApp({ onOpenApp }: { onOpenApp: (app: AppId) => void }) {
   return (
     <div className="times-app app-scroll">
       <div className="times-masthead"><span>THE</span><h1>TSUN TIMES</h1><span>VOL. 01 · SYSTEM EDITION</span></div>
       <div className="times-rule" />
+      <TimesTicker />
       <div className="times-layout">
         <article className="times-lead"><span className="times-section">{STORIES[0].section}</span><h2>{STORIES[0].headline}</h2><p>{STORIES[0].dek}</p><button type="button" className="editorial-link" onClick={() => onOpenApp(STORIES[0].linkedApp)}>OPEN SOURCE DESK <ArrowUpRight size={14} /></button><footer>{STORIES[0].timestamp} · {STORIES[0].source}</footer></article>
-        <aside className="times-market-board"><span className="times-section">MARKET BOARD</span><h3>Data integrity first</h3><div><span>TSUN</span><strong>AWAITING CONFIG</strong></div><div><span>PORTFOLIO</span><strong>SIMULATED</strong></div><div><span>SOCIAL</span><strong>NOT CONNECTED</strong></div><p>Facts update from source events. Headlines do not replace the source.</p></aside>
+        <aside className="times-market-board"><span className="times-section">MARKET BOARD</span><h3>Data integrity first</h3><div><span>TSUN</span><strong>AWAITING CONFIG</strong></div><div><span>PORTFOLIO</span><strong>SIMULATED, EMPTY</strong></div><div><span>SOCIAL</span><strong>NOT CONNECTED</strong></div><p>Facts update from source events. Headlines do not replace the source.</p></aside>
       </div>
       <div className="times-stories">{STORIES.slice(1).map((story) => <article key={story.id}><span className="times-section">{story.section}</span><h3>{story.headline}</h3><p>{story.dek}</p><footer><span>{story.timestamp}</span><button type="button" onClick={() => onOpenApp(story.linkedApp)}>SOURCE <ChevronRight size={13} /></button></footer></article>)}</div>
       <div className="times-bottom-note"><FileText size={15} /> Stories in this MVP are editorial system notes, not claims of external news coverage.</div>
@@ -202,12 +237,21 @@ function fileIcon(type: 'text' | 'executable' | 'audio') {
 
 export function FilesApp() {
   const [selectedId, setSelectedId] = useState(LORE_FILES[0].id)
+  const [deniedTaps, setDeniedTaps] = useState<Record<string, number>>({})
   const selected = useMemo(() => LORE_FILES.find((file) => file.id === selectedId) ?? LORE_FILES[0], [selectedId])
+  const taps = deniedTaps[selected.id] ?? 0
+  const revealSecret = Boolean(selected.locked && selected.secret && taps >= 3)
+  const body = revealSecret ? (selected.secret ?? selected.body) : selected.body
+  const openFile = (id: string) => {
+    setSelectedId(id)
+    const file = LORE_FILES.find((item) => item.id === id)
+    if (file?.locked) setDeniedTaps((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }))
+  }
   const Icon = fileIcon(selected.type)
   return (
     <div className="files-app">
-      <aside className="file-tree"><div className="file-tree-head"><FolderIcon /> <span>/TSUN_OS</span></div>{LORE_FILES.map((file) => { const IconForFile = fileIcon(file.type); return <button type="button" key={file.id} className={cn('file-tree-item', file.id === selected.id && 'active')} onClick={() => setSelectedId(file.id)}><IconForFile size={15} /><span>{file.title}</span>{file.locked && <LockKeyhole size={12} />}</button> })}</aside>
-      <section className="file-reader"><div className="file-reader-top"><div><span className="eyebrow">{selected.path}</span><h2><Icon size={18} /> {selected.title}</h2></div><span className={cn('file-type', selected.locked && 'locked')}>{selected.locked ? 'RESTRICTED' : selected.type.toUpperCase()}</span></div><div className={cn('file-content', selected.locked && 'denied')}><pre>{selected.body}</pre></div><div className="file-meta"><span>OWNER: TSUN</span><span>STATUS: {selected.locked ? 'DENIED' : 'READABLE'}</span><span>NOT A FINANCIAL SIGNAL</span></div></section>
+      <aside className="file-tree"><div className="file-tree-head"><FolderIcon /> <span>/TSUN_OS</span></div>{LORE_FILES.map((file) => { const IconForFile = fileIcon(file.type); return <button type="button" key={file.id} className={cn('file-tree-item', file.id === selected.id && 'active')} onClick={() => openFile(file.id)}><IconForFile size={15} /><span>{file.title}</span>{file.locked && <LockKeyhole size={12} />}</button> })}</aside>
+      <section className="file-reader"><div className="file-reader-top"><div><span className="eyebrow">{selected.path}</span><h2><Icon size={18} /> {selected.title}</h2></div><span className={cn('file-type', selected.locked && 'locked')}>{selected.locked ? 'RESTRICTED' : selected.type.toUpperCase()}</span></div><div className={cn('file-content', selected.locked && !revealSecret && 'denied', revealSecret && 'revealed')}><pre>{body}</pre></div><div className="file-meta"><span>OWNER: TSUN</span><span>STATUS: {selected.locked ? (revealSecret ? 'RELUCTANTLY REVEALED' : 'DENIED') : 'READABLE'}</span><span>NOT A FINANCIAL SIGNAL</span></div></section>
     </div>
   )
 }

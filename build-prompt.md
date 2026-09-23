@@ -813,3 +813,29 @@ Prefer:
 - mobile-first behavior over desktop-only cleverness
 
 Do not ask the user to choose between obvious implementation details. Make sensible engineering decisions, document them in code comments where necessary, and keep the system reversible.
+
+---
+
+# 28. Implemented in this build
+
+The chat architecture in section 8 is now live rather than planned:
+
+```text
+Chat UI (src/components/Chat.tsx)
+  -> POST /api/chat (same origin in dev, preview, and serverless)
+  -> Truth Guard (server/facts.ts builds the fact block from verified provider state)
+  -> Context Builder (server/persona.ts: identity, voice weights, mood, relationship, memory)
+  -> OpenRouter (primary, with a configurable model chain)
+  -> Gemini (fallback, direct generateContent)
+  -> Output Validator (server/facts.ts auditReply rejects unsupported money and percentage values)
+  -> Local character engine (src/lib/tsun.ts) if every provider is unavailable
+```
+
+Supporting notes:
+
+- Provider keys live in non `VITE_` variables and are read by the server handler only.
+- `GET /api/chat` reports which providers are configured so the UI can state the model link honestly.
+- The seeded simulated ledger was removed. The public desk stays empty and labelled until a real
+  position source exists.
+- Fictional surfaces (floor monitor, media player, phone dialer) generate atmosphere only. They
+  state on screen that their figures and events are not real data.

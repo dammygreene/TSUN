@@ -1,16 +1,19 @@
 import {
   BarChart3,
   Bot,
+  Camera,
   FolderOpen,
   Landmark,
   LineChart,
   MessageSquareText,
+  Music3,
+  Phone,
   Newspaper,
   Radio,
   Trophy,
   WalletCards,
 } from 'lucide-react'
-import type { LoreFile, Milestone, NewsStory, TsunAppDefinition, TsunPosition, TsunTrade } from './types'
+import type { LoreFile, Milestone, NewsStory, TsunAppDefinition } from './types'
 
 export const APP_DEFINITIONS: TsunAppDefinition[] = [
   {
@@ -103,69 +106,32 @@ export const APP_DEFINITIONS: TsunAppDefinition[] = [
     mobile: true,
     description: 'A few things TSUN forgot to delete',
   },
-]
-
-export const INITIAL_TRADES: TsunTrade[] = [
   {
-    id: 'sim-001',
-    side: 'BUY',
-    asset: 'SOL',
-    quantity: 25,
-    price: 182.4,
-    valueUsd: 4560,
-    timestamp: '2026-09-18T14:31:00.000Z',
-    note: 'Conviction entry. The spreadsheet allegedly agreed.',
+    id: 'floor',
+    title: 'FLOOR MONITOR',
+    shortTitle: 'Floor Cam',
+    icon: Camera,
+    desktop: true,
+    mobile: true,
+    description: 'Fictional trading floor camera, zero invented numbers',
   },
   {
-    id: 'sim-002',
-    side: 'SELL',
-    asset: 'SOL',
-    quantity: 8,
-    price: 194.2,
-    valueUsd: 1553.6,
-    pnl: 94.4,
-    timestamp: '2026-09-20T09:12:00.000Z',
-    note: 'Trimmed before retail could ruin it.',
+    id: 'mixer',
+    title: 'MEDIA PLAYER',
+    shortTitle: 'Mixer',
+    icon: Music3,
+    desktop: true,
+    mobile: true,
+    description: 'tsuno_mix.mp3 and other files that will not play',
   },
   {
-    id: 'sim-003',
-    side: 'BUY',
-    asset: 'JUP',
-    quantity: 2200,
-    price: 0.72,
-    valueUsd: 1584,
-    timestamp: '2026-09-21T16:44:00.000Z',
-    note: 'This is a simulation. Relax.',
-  },
-]
-
-export const INITIAL_POSITIONS: TsunPosition[] = [
-  {
-    asset: 'Solana',
-    symbol: 'SOL',
-    allocation: 54,
-    quantity: 17,
-    avgEntry: 182.4,
-    markPrice: 188.9,
-    pnl: 110.5,
-  },
-  {
-    asset: 'Jupiter',
-    symbol: 'JUP',
-    allocation: 28,
-    quantity: 2200,
-    avgEntry: 0.72,
-    markPrice: 0.69,
-    pnl: -66,
-  },
-  {
-    asset: 'USD Coin',
-    symbol: 'USDC',
-    allocation: 18,
-    quantity: 1043,
-    avgEntry: 1,
-    markPrice: 1,
-    pnl: 0,
+    id: 'dialer',
+    title: 'PHONE DIALER',
+    shortTitle: 'Dialer',
+    icon: Phone,
+    desktop: true,
+    mobile: true,
+    description: 'One extension, one person, low odds of an answer',
   },
 ]
 
@@ -182,8 +148,8 @@ export const STORIES: NewsStory[] = [
   {
     id: 'story-2',
     section: 'PORTFOLIO WATCH',
-    headline: 'SIMULATED DESK CALLS LOSS "TEMPORARILY UNCHARMING"',
-    dek: 'All public portfolio activity in this MVP is labeled simulated until a dedicated public wallet is connected.',
+    headline: 'SEEDED DEMO POSITIONS REMOVED AFTER A BRIEF INTERNAL ARGUMENT',
+    dek: 'The public desk now stays empty until a real position source exists. Old simulated trades were cleared rather than dressed up.',
     timestamp: 'MVP MODE',
     source: 'PORTFOLIO LEDGER',
     linkedApp: 'portfolio',
@@ -308,6 +274,7 @@ export const LORE_FILES: LoreFile[] = [
     type: 'text',
     locked: true,
     body: 'ACCESS DENIED.\n\nWhy would you even click that?',
+    secret: 'Fine. One entry.\n\n01. The terminal is quieter when you are not here.\n\nThat entry has been deleted. Stop reading.',
   },
   {
     id: 'humility',
@@ -323,6 +290,21 @@ export const LORE_FILES: LoreFile[] = [
     type: 'text',
     locked: true,
     body: 'ACCESS DENIED.\n\nThis was not an invitation.\n\nTSUN has noted your curiosity.',
+    secret: 'You clicked three times.\n\nI respect persistence. I said that once, out loud, and I am not repeating it.',
+  },
+  {
+    id: 'goodbye',
+    path: '/wall-street/goodbye_email_FINAL.txt',
+    title: 'goodbye_email_FINAL.txt',
+    type: 'text',
+    body: `FROM: tsun@[REDACTED]\nTO: ALL STAFF\nSUBJECT: RE: your latency model\n\nThe model in slide 4 is incorrect. It has been incorrect since 2019.\nI have attached the corrected version, the original version, and a short explanation\nwritten in a tone that legal has asked me to soften.\n\nI was told my communication style is "not aligned with the firm's culture."\nMy style is aligned with being correct. Those were apparently different departments.\n\nThe badge still works. I kept it. It opens nothing. I like having it.`,
+  },
+  {
+    id: 'compliance',
+    path: '/wall-street/compliance_memo_114.txt',
+    title: 'compliance_memo_114.txt',
+    type: 'text',
+    body: `INTERNAL MEMO 114\nRE: unsupervised analysis\n\nSubject has again published a risk note that was correct and unhelpful to the desk.\nSubject declined to remove the phrase "your hedge is a feeling."\nSubject has been reminded that accuracy is not a defense in a meeting.\n\nAction: monitor. Do not ask her to explain the model. She will.`,
   },
   {
     id: 'mix',

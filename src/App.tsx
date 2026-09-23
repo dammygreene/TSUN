@@ -15,14 +15,18 @@ import { useClock, useLocalStorage, useMediaQuery } from './hooks'
 import { fetchMarketState, fetchSolChart } from './lib/market'
 import { fetchTokenState, initialTokenState } from './lib/token'
 import { cn, formatCurrency, formatPercent, shortenAddress, uniqueId } from './lib/format'
-import { createInitialMemory, initialMessages, relationshipFromInteractions, respondAsTsun } from './lib/tsun'
+import { createInitialMemory, initialMessages, relationshipFromInteractions } from './lib/tsun'
+import { requestTsunReply } from './lib/chatClient'
+import { useTsunProviders } from './lib/providers'
+import { playSound, primeSound } from './lib/sound'
 import { disconnectPhantomWallet, fetchSolBalance, requestPhantomConnection } from './lib/wallet'
 import type { AppId, ChatMessage, DesktopWindow, MarketState, Toast, TokenState, TsunMood, UserMemory, WalletState } from './types'
-import { BootScreen } from './components/BootScreen'
+import { BootScreen, ShutdownScreen } from './components/BootScreen'
 import { WindowFrame } from './components/WindowFrame'
 import { Terminal } from './components/Terminal'
 import { Chat } from './components/Chat'
 import { FilesApp, MarketsApp, MemoryApp, PortfolioApp, TimesApp, UnlocksApp, WalletApp, XApp } from './components/Applications'
+import { DialerApp, FloorMonitorApp, MediaPlayerApp } from './components/DeskApps'
 import { CRTOverlay } from './components/CRTOverlay'
 
 const APP_BY_ID = Object.fromEntries(APP_DEFINITIONS.map((app) => [app.id, app])) as Record<AppId, (typeof APP_DEFINITIONS)[number]>
@@ -35,8 +39,11 @@ const DESKTOP_ICON_ASSETS: Partial<Record<AppId, string>> = {
   x: '/98-icons/internet-explorer-32x32.png',
   times: '/98-icons/notepad-file-32x32.png',
   memory: '/98-icons/folder-32x32.png',
-  files: '/98-icons/folder-32x32.png',
+  files: '/98-icons/notepad-file-32x32.png',
   unlocks: '/98-icons/minesweeper-32x32.png',
+  floor: '/98-icons/paint-32x32.png',
+  mixer: '/98-icons/msdos-32x32.png',
+  dialer: '/98-icons/internet-explorer-32x32.png',
 }
 
 const DEFAULT_WINDOW_LAYOUT: Record<AppId, Omit<DesktopWindow, 'open' | 'minimized' | 'zIndex'>> = {
@@ -50,6 +57,9 @@ const DEFAULT_WINDOW_LAYOUT: Record<AppId, Omit<DesktopWindow, 'open' | 'minimiz
   unlocks: { id: 'unlocks', x: 278, y: 84, width: 820, height: 642, maximized: false },
   memory: { id: 'memory', x: 316, y: 100, width: 735, height: 555, maximized: false },
   files: { id: 'files', x: 290, y: 94, width: 805, height: 575, maximized: false },
+  floor: { id: 'floor', x: 262, y: 86, width: 872, height: 612, maximized: false },
+  mixer: { id: 'mixer', x: 340, y: 110, width: 690, height: 545, maximized: false },
+  dialer: { id: 'dialer', x: 322, y: 96, width: 720, height: 570, maximized: false },
 }
 
 function createWindows(): Record<AppId, DesktopWindow> {
@@ -104,12 +114,16 @@ function App() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [soundMuted, setSoundMuted] = useState(true)
   const [crtEnabled, setCrtEnabled] = useLocalStorage('tsun-os-crt', true)
+  const { providers, status: providerStatus, lastReply: lastModelReply, record: recordModelReply } = useTsunProviders()
+  const sessionStart = useRef(Date.now())
   const [selectedDesktopIcon, setSelectedDesktopIcon] = useState<AppId | null>(null)
+  const [shutdown, setShutdown] = useState(false)
   const returnedToastShown = useRef(false)
   const previousSolChange = useRef<number | null>(null)
 
   const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = uniqueId('toast')
+    if (toast.kind === 'market' || toast.kind === 'secure') playSound('alert')
     setToasts((current) => [...current.slice(-3), { ...toast, id }])
     window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 6000)
   }, [])
@@ -157,6 +171,7 @@ function App() {
   }, [addToast, bootComplete, memory.interactionCount])
 
   const openApp = useCallback((id: AppId) => {
+    playSound('open')
     const reactions: Partial<Record<AppId, { body: string; mood: TsunMood }>> = {
       portfolio: { body: 'Stop staring at my PnL.', mood: 'EMBARRASSED' },
       memory: { body: 'You really went digging through my memory?', mood: 'FLUSTERED' },
@@ -188,6 +203,7 @@ function App() {
   }, [])
 
   const closeWindow = useCallback((id: AppId) => {
+    playSound('close')
     setWindows((current) => ({ ...current, [id]: { ...current[id], open: false, minimized: false } }))
   }, [])
 
@@ -272,14 +288,18 @@ function App() {
     addToast({ title: 'WALLET DISCONNECTED', body: 'Public wallet context was removed from this session.', kind: 'secure' })
   }, [addToast])
 
-  const handleSend = useCallback((body: string) => {
+  const handleSend = useCallback(async (body: string) => {
     if (sending || !body.trim()) return
-    const userMessage: ChatMessage = { id: uniqueId('user'), role: 'user', body: body.trim(), createdAt: new Date().toISOString() }
+    const prompt = body.trim()
+    const userMessage: ChatMessage = { id: uniqueId('user'), role: 'user', body: prompt, createdAt: new Date().toISOString() }
+    const history = messages
+      .filter((message) => message.role !== 'system')
+      .map((message) => ({ role: message.role === 'tsun' ? ('tsun' as const) : ('user' as const), body: message.body }))
     setMessages((current) => [...current, userMessage])
     setSending(true)
 
-    window.setTimeout(() => {
-      const reply = respondAsTsun({ prompt: body, memory, market, token, wallet })
+    try {
+      const reply = await requestTsunReply({ prompt, history, mood, memory, market, token, wallet })
       const tsunMessage: ChatMessage = {
         id: uniqueId('tsun'),
         role: 'tsun',
@@ -289,14 +309,27 @@ function App() {
         createdAt: new Date().toISOString(),
       }
       setMessages((current) => [...current, tsunMessage])
+      recordModelReply(reply.provider)
+
+      // If a key exists but every provider failed, say so once instead of pretending.
+      if (reply.provider.provider === 'local' && (providers.openrouter.configured || providers.gemini.configured)) {
+        setMessages((current) => [...current, {
+          id: uniqueId('system'),
+          role: 'system',
+          body: 'MODEL LINK UNAVAILABLE. LOCAL CHARACTER ENGINE ANSWERED INSTEAD. NOTHING WAS FABRICATED.',
+          createdAt: new Date().toISOString(),
+        }])
+      }
+
       if (mood !== reply.mood) {
-        addToast({ title: 'TSUN MOOD CHANGED', body: `${mood} → ${reply.mood}`, kind: 'mood' })
+        addToast({ title: 'TSUN MOOD CHANGED', body: `${mood} -> ${reply.mood}`, kind: 'mood' })
       }
       setMood(reply.mood)
+      playSound('blip')
       setMemory((current) => {
         const nextCount = current.interactionCount + 1
         const discussed = [...current.discussedAssets]
-        const lower = body.toLowerCase()
+        const lower = prompt.toLowerCase()
         if (lower.includes('sol') && !discussed.includes('SOL')) discussed.push('SOL')
         if ((lower.includes('btc') || lower.includes('bitcoin')) && !discussed.includes('BTC')) discussed.push('BTC')
         if (lower.includes('tsun') && !discussed.includes('TSUN')) discussed.push('TSUN')
@@ -313,14 +346,22 @@ function App() {
           notes: notes.slice(0, 8),
         }
       })
+    } catch {
+      setMessages((current) => [...current, {
+        id: uniqueId('system'),
+        role: 'system',
+        body: 'THE CHANNEL DROPPED. TSUN IS STILL HERE. TRY AGAIN.',
+        createdAt: new Date().toISOString(),
+      }])
+    } finally {
       setSending(false)
-    }, 500)
-  }, [addToast, market, memory, mood, sending, setMemory, setMessages, token, wallet])
+    }
+  }, [addToast, market, memory, messages, mood, providers.gemini.configured, providers.openrouter.configured, recordModelReply, sending, setMemory, setMessages, token, wallet])
 
   const appContent = useCallback((id: AppId) => {
     switch (id) {
       case 'terminal': return <Terminal market={market} token={token} mood={mood} onRefresh={() => void refreshMarket()} onOpenChat={() => openApp('chat')} />
-      case 'chat': return <Chat messages={messages} mood={mood} memory={memory} sending={sending} onSend={handleSend} />
+      case 'chat': return <Chat messages={messages} mood={mood} memory={memory} sending={sending} onSend={(value) => void handleSend(value)} market={market} token={token} wallet={wallet} providers={providers} providerStatus={providerStatus} lastReply={lastModelReply} />
       case 'markets': return <MarketsApp market={market} token={token} onRefresh={() => void refreshMarket()} />
       case 'wallet': return <WalletApp wallet={wallet} market={market} onConnect={() => void handleConnectWallet()} onDisconnect={() => void handleDisconnectWallet()} onInspect={(address) => void handleInspectAddress(address)} />
       case 'portfolio': return <PortfolioApp />
@@ -329,16 +370,31 @@ function App() {
       case 'unlocks': return <UnlocksApp />
       case 'memory': return <MemoryApp memory={memory} />
       case 'files': return <FilesApp />
+      case 'floor': return <FloorMonitorApp market={market} token={token} mood={mood} onToast={(title, body) => addToast({ title, body, kind: 'system' })} onOpenChat={() => openApp('chat')} />
+      case 'mixer': return <MediaPlayerApp />
+      case 'dialer': return <DialerApp mood={mood} interactions={memory.interactionCount} onOpenChat={() => openApp('chat')} />
       default: return null
     }
-  }, [handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, market, memory, messages, mood, openApp, refreshMarket, sending, token, wallet])
+  }, [addToast, handleConnectWallet, handleDisconnectWallet, handleInspectAddress, handleSend, lastModelReply, market, memory, messages, mood, openApp, providerStatus, providers, refreshMarket, sending, token, wallet])
 
   const activeWindowApps = useMemo(() => APP_DEFINITIONS.filter((app) => windows[app.id].open), [windows])
-  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks']
+  const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'files', 'floor', 'mixer', 'dialer', 'unlocks']
   const sol = market.assets.solana
 
+  const modelBootLine = providerStatus === 'checking'
+    ? 'CHECKING'
+    : providerStatus === 'online'
+      ? 'OPENROUTER'
+      : providerStatus === 'degraded'
+        ? 'GEMINI FALLBACK'
+        : 'LOCAL ENGINE'
+
+  if (shutdown) {
+    return <ShutdownScreen onRestart={() => setShutdown(false)} />
+  }
+
   if (!bootComplete) {
-    return <BootScreen mood={mood} relationship={memory.relationship} marketStatus={market.status} returning={hasBootedBefore} onComplete={finishBoot} />
+    return <BootScreen mood={mood} relationship={memory.relationship} marketStatus={market.status} returning={hasBootedBefore} onComplete={finishBoot} modelLine={modelBootLine} />
   }
 
   return (
@@ -348,14 +404,14 @@ function App() {
       <header className="global-bar">
         <button type="button" className="brand-lockup" onClick={() => openApp('terminal')} aria-label="Open TSUN terminal"><span className="brand-caret">&gt;_</span><span>TSUN//OS</span></button>
         <div className="global-ticker">
-          <button type="button" onClick={() => openApp('terminal')} className="ticker-chip tsun-ticker"><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : token.address ? 'FEED UNAVAILABLE' : 'AWAITING CONFIG'}</strong>{token.change24h !== null && <em className={token.change24h >= 0 ? 'positive' : 'negative'}>{formatPercent(token.change24h)}</em>}</button>
+          <button type="button" onClick={() => openApp('chat')} className="ticker-chip tsun-ticker" title="Open the direct channel"><img src="/tsun_face.jpg" alt="" /><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : token.address ? 'FEED UNAVAILABLE' : 'AWAITING CONFIG'}</strong>{token.change24h !== null && <em className={token.change24h >= 0 ? 'positive' : 'negative'}>{formatPercent(token.change24h)}</em>}</button>
           <button type="button" onClick={() => openApp('markets')} className="ticker-chip"><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong>{sol && <em className={sol.change24h >= 0 ? 'positive' : 'negative'}>{formatPercent(sol.change24h)}</em>}</button>
           <span className="market-open"><i /> MARKET CONTEXT</span>
         </div>
         <div className="global-actions">
           <button type="button" className="global-live" onClick={() => openApp('markets')} title="Open data status"><span className={cn('status-dot', market.status)} /> {market.status === 'live' ? 'LIVE' : market.status === 'loading' ? 'SYNCING' : 'OFFLINE'}</button>
           <button type="button" className="wallet-top-button" onClick={() => openApp('wallet')}><WalletCards size={14} /><span>{wallet.address ? shortenAddress(wallet.address) : 'CONNECT'}</span></button>
-          <button type="button" className="icon-action top-icon" onClick={() => setSoundMuted((value) => !value)} aria-label={soundMuted ? 'Enable sound hooks' : 'Mute sound hooks'}>{soundMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
+          <button type="button" className="icon-action top-icon" onClick={() => { primeSound(); playSound('blip'); setSoundMuted((value) => !value) }} aria-label={soundMuted ? 'Enable operator blips' : 'Mute operator blips'} title={soundMuted ? 'Operator blips: off' : 'Operator blips: on'}>{soundMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
           <button type="button" className="icon-action top-icon mobile-menu-trigger" onClick={() => setMoreOpen((value) => !value)} aria-label="Open more applications"><Menu size={17} /></button>
         </div>
       </header>
@@ -369,7 +425,12 @@ function App() {
             <div><span>BTC</span><strong>{market.assets.bitcoin ? formatCurrency(market.assets.bitcoin.priceUsd) : 'UNAVAILABLE'}</strong></div>
             <div><span>SOL</span><strong>{sol ? formatCurrency(sol.priceUsd) : 'UNAVAILABLE'}</strong><em className={sol && sol.change24h >= 0 ? 'positive' : 'negative'}>{sol ? formatPercent(sol.change24h) : 'NO SOURCE'}</em></div>
             <div><span>TSUN</span><strong>{token.priceUsd !== null ? formatCurrency(token.priceUsd, { digits: 7 }) : 'UNAVAILABLE'}</strong></div>
-            <footer><span>MOOD {mood}</span><b>{market.status === 'live' ? 'ONLINE' : 'SYNCING'}</b></footer>
+            <div><span>MOOD</span><strong className="monitor-mood">{mood}</strong></div>
+            <footer>
+              <span>LINK {market.status === 'live' ? 'ONLINE' : 'SYNCING'}</span>
+              <button type="button" className="monitor-audio" onClick={() => { primeSound(); playSound('blip'); setSoundMuted((value) => !value) }}>{soundMuted ? 'VOL OFF' : 'VOL ON'}</button>
+            </footer>
+            <div className="monitor-uptime">SESSION {Math.max(1, Math.round((clock.getTime() - sessionStart.current) / 60000))} MIN{providerStatus !== 'checking' ? ` / ${providerStatus === 'online' ? 'MODEL LIVE' : providerStatus === 'degraded' ? 'MODEL FALLBACK' : 'LOCAL ENGINE'}` : ''}</div>
           </aside>
           <div className="desktop-icons" aria-label="TSUN OS applications">
             {primaryDesktopIcons.map((id) => {
@@ -399,7 +460,7 @@ function App() {
         </section>
       )}
 
-      {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onClose={() => setLauncherOpen(false)} onToggleCrt={() => setCrtEnabled((value) => !value)} crtEnabled={crtEnabled} />}
+      {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onClose={() => setLauncherOpen(false)} onToggleCrt={() => setCrtEnabled((value) => !value)} crtEnabled={crtEnabled} onShutdown={() => { setLauncherOpen(false); playSound('close'); setShutdown(true) }} />}
       {moreOpen && <MoreDrawer onOpen={openApp} onClose={() => setMoreOpen(false)} />}
 
       <div className="toast-stack" aria-live="polite">
@@ -417,19 +478,19 @@ function Taskbar({ activeApps, windows, onOpen, onToggleLauncher, currentTime }:
     <footer className="taskbar">
       <button type="button" className="taskbar-start" onClick={onToggleLauncher}><img src="/98-icons/start.png" alt="" /><span>Start</span></button>
       <div className="taskbar-apps">{activeApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} className={cn('taskbar-app', windows[id].minimized && 'minimized')} onClick={() => onOpen(id)}><Icon size={14} /><span>{app.shortTitle}</span></button> })}</div>
-      <div className="taskbar-status"><span className="taskbar-status-label">LOCAL SESSION</span><span>{time} UTC</span><button type="button" className="power-button" title="Session is browser local only"><Power size={14} /></button></div>
+      <div className="taskbar-status"><img className="taskbar-face" src="/tsun_face.jpg" alt="" title={`TSUN is ${'here'}.`} /><span className="taskbar-status-label">LOCAL SESSION</span><span>{time} UTC</span><button type="button" className="power-button" title="Session is browser local only"><Power size={14} /></button></div>
     </footer>
   )
 }
 
-function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled }: { onOpen: (id: AppId) => void; onClose: () => void; onToggleCrt: () => void; crtEnabled: boolean }) {
-  const recentApps: AppId[] = ['terminal', 'chat', 'markets', 'files']
+function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled, onShutdown }: { onOpen: (id: AppId) => void; onClose: () => void; onToggleCrt: () => void; crtEnabled: boolean; onShutdown: () => void }) {
+  const recentApps: AppId[] = ['terminal', 'chat', 'markets', 'files', 'floor', 'dialer']
   const systemLinks: Array<{ label: string; id?: AppId }> = [
     { label: 'My Computer', id: 'terminal' },
     { label: 'Documents', id: 'files' },
-    { label: 'Settings' },
-    { label: 'Search' },
-    { label: 'Help' },
+    { label: 'Programs', id: 'mixer' },
+    { label: 'Find: the money', id: 'portfolio' },
+    { label: 'Help', id: 'chat' },
     { label: 'Run...', id: 'terminal' },
   ]
   return (
@@ -439,13 +500,13 @@ function AppLauncher({ onOpen, onClose, onToggleCrt, crtEnabled }: { onOpen: (id
         <div className="start-recent"><span className="start-column-label">Recently used</span>{recentApps.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" key={id} onClick={() => onOpen(id)}><Icon size={22} /><span><strong>{app.title}</strong><small>{app.description}</small></span></button> })}<button type="button" className="all-programs" onClick={() => onOpen('terminal')}><Grid2X2 size={16} /><strong>All Programs</strong><ChevronDown size={14} /></button></div>
         <div className="start-system"><span className="start-column-label">TSUN//OS</span>{systemLinks.map((item) => <button type="button" key={item.label} onClick={() => item.id ? onOpen(item.id) : onClose()}><span className="start-system-icon"><MonitorUp size={16} /></span><strong>{item.label}</strong></button>)}<div className="start-divider" /><button type="button" onClick={onToggleCrt}><span className="start-system-icon"><MonitorUp size={16} /></span><strong>CRT Effects: {crtEnabled ? 'ON' : 'OFF'}</strong></button></div>
       </div>
-      <div className="start-footer"><button type="button" onClick={onClose}><Power size={15} /> Log Off</button><button type="button" onClick={onClose}><Power size={15} /> Shut Down</button></div>
+      <div className="start-footer"><button type="button" onClick={onClose}><Power size={15} /> Log Off</button><button type="button" onClick={onShutdown}><Power size={15} /> Shut Down</button><button type="button" onClick={onClose} className="start-footer-help"><Power size={15} /> Restart</button></div>
     </aside>
   )
 }
 
 function MoreDrawer({ onOpen, onClose }: { onOpen: (id: AppId) => void; onClose: () => void }) {
-  const moreApps: AppId[] = ['wallet', 'portfolio', 'x', 'times', 'unlocks', 'files', 'memory']
+  const moreApps: AppId[] = ['wallet', 'portfolio', 'x', 'times', 'unlocks', 'files', 'floor', 'mixer', 'dialer', 'memory']
   return (
     <aside className="more-drawer">
       <div className="more-drawer-header"><div><span className="eyebrow">TSUN//OS</span><h2>More applications</h2></div><button type="button" onClick={onClose}><X size={17} /></button></div>
@@ -457,7 +518,7 @@ function MoreDrawer({ onOpen, onClose }: { onOpen: (id: AppId) => void; onClose:
 function MobileNav({ active, onOpen, onMore }: { active: AppId; onOpen: (id: AppId) => void; onMore: () => void }) {
   const nav: AppId[] = ['terminal', 'chat', 'markets', 'portfolio']
   return (
-    <footer className="mobile-nav">{nav.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" className={cn(active === id && 'active')} key={id} onClick={() => onOpen(id)}><Icon size={18} /><span>{id === 'portfolio' ? 'Desk' : app.shortTitle}</span></button> })}<button type="button" className={cn(!nav.includes(active) && 'active')} onClick={onMore}><Menu size={18} /><span>More</span></button></footer>
+    <footer className="mobile-nav">{nav.map((id) => { const app = APP_BY_ID[id]; const Icon = app.icon; return <button type="button" className={cn(active === id && 'active')} key={id} onClick={() => onOpen(id)}><Icon size={18} /><span>{id === 'portfolio' ? 'Desk' : app.shortTitle}</span></button> })}<button type="button" className={cn(!nav.includes(active) && 'active')} onClick={onMore}><Menu size={18} /><span>Programs</span></button></footer>
   )
 }
 

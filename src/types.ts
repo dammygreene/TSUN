@@ -32,6 +32,9 @@ export type AppId =
   | 'unlocks'
   | 'memory'
   | 'files'
+  | 'floor'
+  | 'mixer'
+  | 'dialer'
 
 export type DataStatus = 'live' | 'loading' | 'stale' | 'unavailable'
 
@@ -185,4 +188,6 @@ export interface LoreFile {
   type: 'text' | 'executable' | 'audio'
   body: string
   locked?: boolean
+  /** Revealed only after a user keeps clicking a locked file. Rare, and immediately denied. */
+  secret?: string
 }

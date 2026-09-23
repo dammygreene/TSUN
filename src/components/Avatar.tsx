@@ -5,6 +5,11 @@ interface AvatarProps {
   mood: TsunMood
   compact?: boolean
   imagePath?: string
+  /**
+   * Bare mode shows the photograph and nothing else. No orbit rings, no face overlay, no caption
+   * text. TALK TO TSUN uses this so the portrait is clean; the terminal keeps the decorated frame.
+   */
+  bare?: boolean
 }
 
 const moodLabel: Record<TsunMood, string> = {
@@ -20,13 +25,26 @@ const moodLabel: Record<TsunMood, string> = {
   DERE: 'KEEPING THE LIGHT ON',
 }
 
-export function Avatar({ mood, compact = false, imagePath = '/tsun_portrait.jpe' }: AvatarProps) {
+export function Avatar({ mood, compact = false, imagePath = '/tsun_portrait.jpe', bare = false }: AvatarProps) {
   const eyeMood = mood === 'ANGRY' || mood === 'FURIOUS' ? 'angry' : mood === 'SMUG' ? 'smug' : mood === 'EMBARRASSED' || mood === 'FLUSTERED' ? 'soft' : 'normal'
+  const fallback = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget
+    image.onerror = null
+    image.src = '/tsun_portrait.jpe'
+  }
+
+  if (bare) {
+    return (
+      <div className={cn('avatar-shell', 'avatar-bare', `avatar-${mood.toLowerCase()}`, compact && 'avatar-compact')} aria-label={`TSUN visual state: ${mood}`}>
+        <img className="avatar-image" src={imagePath} alt={`TSUN portrait, current mood ${mood}`} onError={fallback} />
+      </div>
+    )
+  }
 
   return (
     <div className={cn('avatar-shell', `avatar-${mood.toLowerCase()}`, compact && 'avatar-compact')} aria-label={`TSUN visual state: ${mood}`}>
       <div className="avatar-orbit orbit-one" />
-          <img className="avatar-image" src={imagePath} alt={`TSUN avatar for mood: ${mood}`} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/tsun_portrait.jpe' }} />
+      <img className="avatar-image" src={imagePath} alt={`TSUN avatar for mood: ${mood}`} onError={fallback} />
       <div className="avatar-orbit orbit-two" />
       <svg className="avatar-art" viewBox="0 0 280 340" role="img" aria-hidden="true">
         <defs>
