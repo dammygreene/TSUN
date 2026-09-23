@@ -572,7 +572,7 @@ function App() {
         </section>
       )}
 
-      {!isMobile && <TickerTape />}
+      <TickerTape />
 
       {launcherOpen && !isMobile && <AppLauncher onOpen={openApp} onShutdown={triggerShutdown} onClose={() => setLauncherOpen(false)} onToggleCrt={() => setCrtEnabled((value) => !value)} crtEnabled={crtEnabled} onToast={addToast} />}
       {moreOpen && <MoreDrawer onOpen={openApp} onClose={() => setMoreOpen(false)} />}

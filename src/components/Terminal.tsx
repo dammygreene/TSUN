@@ -138,6 +138,28 @@ export function Terminal({ market, token, mood, onRefresh, onOpenChat }: Termina
         </aside>
       </div>
 
+      {/* Mobile-only extra — floor monitor + now playing + disclaimer, TSUN lore, not Stratton copy */}
+      <div className="terminal-mobile-extra">
+        <div className="terminal-mobile-card">
+          <strong>TSUN 98 // FLOOR 4 — SHIBUYA</strong>
+          <span>CAM 04 · TRADING FLOOR 4 — Daily quota $0 / $250k — 12 brokers 0 on lines</span>
+          <div className="monitor-actions" style={{ marginTop: '8px' }}>
+            <button type="button">📣 Motivate</button>
+            <button type="button">👮 Drill</button>
+            <button type="button">🍕 Lunch</button>
+          </div>
+          <p style={{ marginTop: '8px', color: '#8a8a86', lineHeight: '1.4' }}>TSUN's desk, not Stratton's. Same hustle vibe, different attitude. TSUN verifies before flexing.</p>
+        </div>
+        <div className="terminal-mobile-card">
+          <strong>NOW PLAYING — TSUN_MIX_98.MP3</strong>
+          <span>WAITING FOR THE OPENING BELL... — Audio device: not connected. There is no soundtrack. Focus.</span>
+        </div>
+        <div className="terminal-mobile-card">
+          <strong>A note about all this — TSUN lore</strong>
+          <span>Parody fan project. TSUN is fictional 24yo adult AI, ex-Wall-Street HFT, fired for attitude mismatch, now on Crypto X. Token TSUN on Solana. Portfolio SIMULATED MVP. Only SOL/BTC verified. Not financial advice. Inspired by Stratton's OS concept but built with TSUN's own world.</span>
+        </div>
+      </div>
+
       <div className="terminal-bottom-grid">
         <section className="market-pulse-card">
           <div className="section-heading"><div><span className="eyebrow">LIVE MARKET PULSE</span><h2>Verified context</h2></div><button type="button" className="icon-action" onClick={onRefresh} aria-label="Refresh market data"><RefreshCw size={15} /></button></div>
