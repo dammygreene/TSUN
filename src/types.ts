@@ -32,6 +32,15 @@ export type AppId =
   | 'unlocks'
   | 'memory'
   | 'files'
+  | 'media'
+  | 'dialer'
+  | 'ferrari'
+  | 'mail'
+  | 'game'
+  | 'recycle'
+  | 'fax'
+  | 'about'
+  | 'howitworks'
 
 export type DataStatus = 'live' | 'loading' | 'stale' | 'unavailable'
 

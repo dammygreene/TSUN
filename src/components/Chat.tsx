@@ -10,6 +10,7 @@ interface ChatProps {
   mood: TsunMood
   memory: UserMemory
   sending: boolean
+  typingLabel?: string
   onSend: (value: string) => void
 }
 
@@ -44,7 +45,7 @@ function relationshipDescription(relationship: RelationshipLevel) {
   return copy[relationship]
 }
 
-export function Chat({ messages, mood, memory, sending, onSend }: ChatProps) {
+export function Chat({ messages, mood, memory, sending, typingLabel = 'TSUN IS THINKING...', onSend }: ChatProps) {
   const [input, setInput] = useState('')
   const messageEnd = useRef<HTMLDivElement>(null)
 
@@ -63,7 +64,7 @@ export function Chat({ messages, mood, memory, sending, onSend }: ChatProps) {
   return (
     <div className="chat-view">
       <aside className="chat-identity-panel">
-        <Avatar mood={mood} imagePath="/tsun_chatIMG.jpeg" />
+        <Avatar mood={mood} imagePath="/tsun_chat.jpeg" bare />
         <div className="identity-stat-grid">
           <div><span>MOOD</span><strong>{mood}</strong></div>
           <div><span>RELATIONSHIP</span><strong>{memory.relationship}</strong></div>
@@ -93,7 +94,7 @@ export function Chat({ messages, mood, memory, sending, onSend }: ChatProps) {
             </div>
           )}
           {sending && (
-            <div className="chat-thinking"><span className="status-dot loading" /> <span>TSUN IS CHECKING THE RELEVANT FACTS...</span></div>
+            <div className="chat-thinking"><span className="status-dot loading" /> <span>{typingLabel}</span></div>
           )}
           <div ref={messageEnd} />
         </div>
@@ -108,7 +109,7 @@ export function Chat({ messages, mood, memory, sending, onSend }: ChatProps) {
           />
           <button type="submit" disabled={!input.trim() || sending} aria-label="Send message"><SendHorizontal size={17} /></button>
         </form>
-        <div className="compose-note">Local browser memory only in this build. Never submit keys, seed phrases, or secrets.</div>
+        <div className="compose-note">Messages are sent to TSUN chat providers (OpenRouter, Gemini fallback) when configured. Local memory stays in this browser. Never submit keys, seed phrases, or secrets.</div>
       </section>
     </div>
   )

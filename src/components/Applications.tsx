@@ -17,7 +17,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { INITIAL_POSITIONS, INITIAL_TRADES, LORE_FILES, MILESTONES, STORIES } from '../data'
 import { cn, formatCurrency, formatDate, formatNumber, formatPercent, formatRelativeTime, formatSignedCurrency, shortenAddress } from '../lib/format'
 import type { AppId, MarketState, TokenState, UserMemory, WalletState } from '../types'
@@ -158,16 +158,55 @@ export function XApp() {
 }
 
 export function TimesApp({ onOpenApp }: { onOpenApp: (app: AppId) => void }) {
+  const [edition, setEdition] = useState(0)
+  const [countdown, setCountdown] = useState(13)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          setEdition((e) => (e + 1) % STORIES.length)
+          return 13
+        }
+        return c - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const lead = STORIES[edition % STORIES.length]
+
   return (
     <div className="times-app app-scroll">
-      <div className="times-masthead"><span>THE</span><h1>TSUN TIMES</h1><span>VOL. 01 · SYSTEM EDITION</span></div>
+      <div className="times-masthead">
+        <div className="times-masthead-left"><span>THE</span><h1>TSUN TIMES</h1></div>
+        <div className="times-masthead-right"><span>25¢</span><small>VOL. 01 · SYSTEM EDITION</small></div>
+      </div>
+      <div className="times-subhead">
+        <span>ALL THE NEWS THAT MOVES THE TAPE</span>
+        <em>next edition in {countdown}s — THE TAPE / SHIBUYA FLOOR 4</em>
+      </div>
       <div className="times-rule" />
       <div className="times-layout">
-        <article className="times-lead"><span className="times-section">{STORIES[0].section}</span><h2>{STORIES[0].headline}</h2><p>{STORIES[0].dek}</p><button type="button" className="editorial-link" onClick={() => onOpenApp(STORIES[0].linkedApp)}>OPEN SOURCE DESK <ArrowUpRight size={14} /></button><footer>{STORIES[0].timestamp} · {STORIES[0].source}</footer></article>
-        <aside className="times-market-board"><span className="times-section">MARKET BOARD</span><h3>Data integrity first</h3><div><span>TSUN</span><strong>AWAITING CONFIG</strong></div><div><span>PORTFOLIO</span><strong>SIMULATED</strong></div><div><span>SOCIAL</span><strong>NOT CONNECTED</strong></div><p>Facts update from source events. Headlines do not replace the source.</p></aside>
+        <article className="times-lead">
+          <span className="times-section">{lead.section} · EDITION #{edition + 1}</span>
+          <h2>{lead.headline}</h2>
+          <p>{lead.dek}</p>
+          <button type="button" className="editorial-link" onClick={() => onOpenApp(lead.linkedApp)}>OPEN SOURCE DESK <ArrowUpRight size={14} /></button>
+          <footer>{lead.timestamp} · {lead.source} — Click tape to rotate</footer>
+        </article>
+        <aside className="times-market-board">
+          <span className="times-section">MARKET BOARD</span>
+          <h3>Data integrity first</h3>
+          <div><span>TSUN</span><strong>AWAITING CONFIG</strong></div>
+          <div><span>PORTFOLIO</span><strong>SIMULATED</strong></div>
+          <div><span>SOCIAL</span><strong>NOT CONNECTED</strong></div>
+          <div className="times-board-ticker"><span>QUOTE</span><strong>"A number without a source is just fan fiction." — TSUN</strong></div>
+          <p>Facts update from source events. Headlines do not replace the source. This paper is parody, like Stratton's ledger.</p>
+        </aside>
       </div>
       <div className="times-stories">{STORIES.slice(1).map((story) => <article key={story.id}><span className="times-section">{story.section}</span><h3>{story.headline}</h3><p>{story.dek}</p><footer><span>{story.timestamp}</span><button type="button" onClick={() => onOpenApp(story.linkedApp)}>SOURCE <ChevronRight size={13} /></button></footer></article>)}</div>
-      <div className="times-bottom-note"><FileText size={15} /> Stories in this MVP are editorial system notes, not claims of external news coverage.</div>
+      <div className="times-bottom-note"><FileText size={15} /> Stories in this MVP are editorial system notes, not claims of external news coverage. Inspired by the Stratton Ledger vibe, built with TSUN attitude.</div>
     </div>
   )
 }

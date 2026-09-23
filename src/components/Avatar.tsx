@@ -5,6 +5,8 @@ interface AvatarProps {
   mood: TsunMood
   compact?: boolean
   imagePath?: string
+  bare?: boolean
+  hideCopy?: boolean
 }
 
 const moodLabel: Record<TsunMood, string> = {
@@ -20,14 +22,15 @@ const moodLabel: Record<TsunMood, string> = {
   DERE: 'KEEPING THE LIGHT ON',
 }
 
-export function Avatar({ mood, compact = false, imagePath = '/tsun_portrait.jpe' }: AvatarProps) {
+export function Avatar({ mood, compact = false, imagePath = '/tsun_portrait.jpe', bare = false, hideCopy = false }: AvatarProps) {
   const eyeMood = mood === 'ANGRY' || mood === 'FURIOUS' ? 'angry' : mood === 'SMUG' ? 'smug' : mood === 'EMBARRASSED' || mood === 'FLUSTERED' ? 'soft' : 'normal'
+  const showCopy = !compact && !bare && !hideCopy
 
   return (
-    <div className={cn('avatar-shell', `avatar-${mood.toLowerCase()}`, compact && 'avatar-compact')} aria-label={`TSUN visual state: ${mood}`}>
-      <div className="avatar-orbit orbit-one" />
-          <img className="avatar-image" src={imagePath} alt={`TSUN avatar for mood: ${mood}`} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/tsun_portrait.jpe' }} />
-      <div className="avatar-orbit orbit-two" />
+    <div className={cn('avatar-shell', `avatar-${mood.toLowerCase()}`, compact && 'avatar-compact', bare && 'avatar-bare')} aria-label={`TSUN visual state: ${mood}`}>
+      {!bare && <div className="avatar-orbit orbit-one" />}
+      <img className="avatar-image" src={imagePath} alt={`TSUN avatar for mood: ${mood}`} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/tsun_portrait.jpe' }} />
+      {!bare && <div className="avatar-orbit orbit-two" />}
       <svg className="avatar-art" viewBox="0 0 280 340" role="img" aria-hidden="true">
         <defs>
           <linearGradient id="hair" x1="0" x2="1" y1="0" y2="1">
@@ -64,7 +67,7 @@ export function Avatar({ mood, compact = false, imagePath = '/tsun_portrait.jpe'
         <path d="M116 240h47l-23 28-24-28Z" fill="#df7387" opacity=".7" />
         <path d="M122 268h36l-18 31-18-31Z" fill="#df7387" opacity=".34" />
       </svg>
-      {!compact && (
+      {showCopy && (
         <div className="avatar-copy">
           <span className="eyebrow">TSUN // VISUAL CORE</span>
           <strong>{mood}</strong>
