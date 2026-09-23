@@ -28,8 +28,10 @@ import { FilesApp, MarketsApp, MemoryApp, PortfolioApp, TimesApp, UnlocksApp, Wa
 import { CRTOverlay } from './components/CRTOverlay'
 import { NowPlaying } from './components/NowPlaying'
 import { ShutdownScreen } from './components/ShutdownScreen'
+import { BSODScreen } from './components/BSODScreen'
 import { TickerTape } from './components/TickerTape'
 import { MediaPlayerApp, PhoneDialerApp, FerrariApp, MailApp, GameApp, RecycleApp, FaxApp, AboutApp, HowItWorksApp } from './components/FunApps'
+import { playClick } from './lib/sound'
 
 const APP_BY_ID = Object.fromEntries(APP_DEFINITIONS.map((app) => [app.id, app])) as Record<AppId, (typeof APP_DEFINITIONS)[number]>
 const DESKTOP_ICON_ASSETS: Partial<Record<AppId, string>> = {
@@ -124,6 +126,7 @@ function App() {
   const [selectedDesktopIcon, setSelectedDesktopIcon] = useState<string | null>(null)
   const [quota, setQuota] = useState(0)
   const [isScreensaver, setIsScreensaver] = useState(false)
+  const [isBSOD, setIsBSOD] = useState(false)
   const [brandClicks, setBrandClicks] = useState(0)
   const screensaverTimer = useRef<number | null>(null)
   const returnedToastShown = useRef(false)
@@ -208,6 +211,7 @@ function App() {
   }, [addToast, bootComplete, memory.interactionCount])
 
   const openApp = useCallback((id: AppId) => {
+    playClick(soundMuted)
     const reactions: Partial<Record<AppId, { body: string; mood: TsunMood }>> = {
       portfolio: { body: 'Stop staring at my PnL.', mood: 'EMBARRASSED' },
       memory: { body: 'You really went digging through my memory?', mood: 'FLUSTERED' },
@@ -215,6 +219,7 @@ function App() {
       ferrari: { body: 'Shortcut corrupted. You cannot afford the gas.', mood: 'SMUG' },
       recycle: { body: 'Digging through trash? Really?', mood: 'ANNOYED' },
       mail: { body: 'You read my mail? Brave.', mood: 'FLUSTERED' },
+      fax: { body: 'Faxing to 1989...', mood: 'NORMAL' },
     }
     const reaction = reactions[id]
     if (reaction) {
@@ -232,9 +237,10 @@ function App() {
       return { ...current, [id]: { ...current[id], open: true, minimized: false, zIndex } }
     })
     setLauncherOpen(false)
-  }, [addToast, isMobile])
+  }, [addToast, isMobile, soundMuted])
 
   const handleBrandEasterEgg = useCallback(() => {
+    playClick(soundMuted)
     const next = brandClicks + 1
     setBrandClicks(next)
     if (next >= 5) {
@@ -245,9 +251,12 @@ function App() {
       setTimeout(() => setMood(prev), 10000)
     } else if (next === 3) {
       addToast({ title: 'TSUN//OS', body: `Clicked ${next} times. Keep going and I might pretend to care.`, kind: 'system' })
+    } else if (next >= 10) {
+      setBrandClicks(0)
+      setIsBSOD(true)
     }
     openApp('terminal')
-  }, [brandClicks, addToast, mood, openApp])
+  }, [brandClicks, addToast, mood, openApp, soundMuted])
 
   const focusWindow = useCallback((id: AppId) => {
     setWindows((current) => {
@@ -340,6 +349,7 @@ function App() {
   }, [addToast])
 
   const handleFloorAction = useCallback((action: 'motivate'|'drill'|'lunch') => {
+    playClick(soundMuted)
     if (action === 'motivate') {
       setQuota((q) => Math.min(250000, q + 15000))
       addToast({ title: 'TSUN SALES FLOOR', body: 'TSUN: Listen up. We are not here to make friends. We are here to verify data before claiming conviction. Now dial.', kind: 'market' })
@@ -351,11 +361,16 @@ function App() {
       addToast({ title: 'TSUN LUNCH', body: 'TSUN: Lunch is simulated until morale improves. The market is still wrong. Eat your feelings, not your PnL.', kind: 'system' })
       setMood('NORMAL')
     }
-  }, [addToast])
+  }, [addToast, soundMuted])
 
   const handleSend = useCallback(async (body: string) => {
     if (sending || !body.trim()) return
     const trimmed = body.trim()
+    const lowerPre = trimmed.toLowerCase()
+    if (lowerPre.includes('bsod') || lowerPre.includes('blue screen')) {
+      setIsBSOD(true)
+      return
+    }
     const userMessage: ChatMessage = { id: uniqueId('user'), role: 'user', body: trimmed, createdAt: new Date().toISOString() }
     setMessages((current) => [...current, userMessage])
     setSending(true)
@@ -453,6 +468,10 @@ function App() {
   const activeWindowApps = useMemo(() => APP_DEFINITIONS.filter((app) => windows[app.id].open), [windows])
   const primaryDesktopIcons: AppId[] = ['terminal', 'chat', 'markets', 'wallet', 'portfolio', 'x', 'times', 'memory', 'files', 'unlocks', 'media', 'dialer', 'ferrari', 'mail', 'game', 'recycle', 'fax', 'about', 'howitworks']
   const sol = market.assets.solana
+
+  if (isBSOD) {
+    return <BSODScreen onRestart={() => setIsBSOD(false)} />
+  }
 
   if (isShutdown) {
     return <ShutdownScreen onRestart={restartFromShutdown} />
